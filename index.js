@@ -2,23 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg'); // Usamos fluent-ffmpeg para convertir videos.
+const ffmpeg = require('fluent-ffmpeg');
 
 const app = express();
 const PORT = 8000;
 
-// Habilitar CORS
 app.use(cors());
+app.use(express.json()); // Middleware para procesar JSON en el body de la petición
 
-// Directorio donde están las películas
-const MOVIES_DIR = 'E:/Peliculas/Peliculas';
+let MOVIES_DIR = 'E:/Peliculas/Peliculas'; // Ruta de las películas (inicial)
 
 // Función para convertir archivos .mkv a .mp4 solo si es necesario
 function convertToMp4(filePath, outputDir, callback) {
     const fileName = path.basename(filePath, path.extname(filePath)) + '.mp4';
     const outputPath = path.join(outputDir, fileName);
 
-    // Verificar si el archivo .mp4 ya existe para evitar conversiones innecesarias
     if (fs.existsSync(outputPath)) {
         console.log(`✅ El archivo ya existe: ${outputPath}`);
         return callback(null, outputPath);
@@ -28,10 +26,10 @@ function convertToMp4(filePath, outputDir, callback) {
 
     ffmpeg(filePath)
         .output(outputPath)
-        .videoCodec('copy') // Copiar el codec de video original
-        .audioCodec('copy') // Copiar el codec de audio original
+        .videoCodec('copy')
+        .audioCodec('copy')
         .on('end', () => {
-            console.log(`✅ Conversión completa: ${outputPath} (Ahora está disponible para streaming)`);
+            console.log(`✅ Conversión completa: ${outputPath}`);
             callback(null, outputPath);
         })
         .on('error', (err) => {
@@ -40,45 +38,6 @@ function convertToMp4(filePath, outputDir, callback) {
         })
         .run();
 }
-
-// Ruta para listar todas las películas disponibles
-app.get('/movies', (req, res) => {
-    fs.readdir(MOVIES_DIR, (err, files) => {
-        if (err) {
-            return res.status(500).send('Error al leer el directorio de películas.');
-        }
-
-        // Filtrar solo archivos de video válidos (.mp4 y .mkv)
-        const movies = files
-            .filter(file => /\.(mp4|mkv)$/i.test(file)) // Solo archivos de video
-            .map((file, index) => ({
-                id: index + 1,
-                name: path.basename(file, path.extname(file)), // Nombre sin extensión
-                address: `http://${req.hostname}:${PORT}/stream/${encodeURIComponent(file)}`,
-            }));
-
-        res.json(movies);
-    });
-});
-
-// Ruta para hacer streaming de una película (con conversión si es .mkv)
-app.get('/stream/:movie', (req, res) => {
-    const requestedFile = req.params.movie;
-    const filePath = path.join(MOVIES_DIR, requestedFile);
-    const ext = path.extname(requestedFile).toLowerCase();
-
-    // Si el archivo solicitado es un .mkv, convertirlo antes de hacer streaming
-    if (ext === '.mkv') {
-        convertToMp4(filePath, MOVIES_DIR, (err, convertedPath) => {
-            if (err) {
-                return res.status(500).send('Error al convertir la película.');
-            }
-            streamMovie(convertedPath, res, req);
-        });
-    } else {
-        streamMovie(filePath, res, req);
-    }
-});
 
 // Función para manejar el streaming del archivo de video
 function streamMovie(moviePath, res, req) {
@@ -117,9 +76,61 @@ function streamMovie(moviePath, res, req) {
     }
 }
 
-// Ruta base para verificar que el servidor funciona
+// <<< --- RUTAS --- >>> //
+
+// Ruta principal
 app.get('/', (req, res) => {
     res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
+});
+
+// Ruta para listar todas las películas disponibles
+app.get('/movies', (req, res) => {
+    fs.readdir(MOVIES_DIR, (err, files) => {
+        if (err) {
+            return res.status(500).send('Error al leer el directorio de películas.');
+        }
+
+        const movies = files
+            .filter(file => /\.(mp4|mkv)$/i.test(file))
+            .map((file, index) => ({
+                id: index + 1,
+                name: path.basename(file, path.extname(file)),
+                address: `http://${req.hostname}:${PORT}/stream/${encodeURIComponent(file)}`,
+            }));
+
+        res.json(movies);
+    });
+});
+
+// Ruta para hacer streaming de una película
+app.get('/stream/:movie', (req, res) => {
+    const requestedFile = req.params.movie;
+    const filePath = path.join(MOVIES_DIR, requestedFile);
+    const ext = path.extname(requestedFile).toLowerCase();
+
+    if (ext === '.mkv') {
+        convertToMp4(filePath, MOVIES_DIR, (err, convertedPath) => {
+            if (err) {
+                return res.status(500).send('Error al convertir la película.');
+            }
+            streamMovie(convertedPath, res, req);
+        });
+    } else {
+        streamMovie(filePath, res, req);
+    }
+});
+
+// Ruta para actualizar la ruta de la carpeta de películas
+app.post('/movies/set-path', (req, res) => {
+    const { path: newPath } = req.body;
+
+    if (!newPath || !fs.existsSync(newPath)) {
+        return res.status(400).send('Ruta no válida o no encontrada.');
+    }
+
+    MOVIES_DIR = newPath;
+    console.log(`📁 Ruta de películas actualizada: ${MOVIES_DIR}`);
+    res.send(`Ruta de películas actualizada: ${MOVIES_DIR}`);
 });
 
 // Iniciar el servidor
