@@ -10,7 +10,7 @@ const PORT = 8000;
 app.use(cors());
 app.use(express.json()); // Middleware para procesar JSON en el body de la petición
 
-let MOVIES_DIR = 'E:/Peliculas/Peliculas'; // Ruta de las películas (inicial)
+let MOVIES_DIR = 'E:/Peliculas/Peliculas';
 
 // Función para convertir archivos .mkv a .mp4 solo si es necesario
 function convertToMp4(filePath, outputDir, callback) {
@@ -109,12 +109,13 @@ app.get('/stream/:movie', (req, res) => {
     const ext = path.extname(requestedFile).toLowerCase();
 
     if (ext === '.mkv') {
-        convertToMp4(filePath, MOVIES_DIR, (err, convertedPath) => {
-            if (err) {
-                return res.status(500).send('Error al convertir la película.');
-            }
-            streamMovie(convertedPath, res, req);
-        });
+        //convertToMp4(filePath, MOVIES_DIR, (err, convertedPath) => {
+        //    if (err) {
+        //        return res.status(500).send('Error al convertir la película.');
+        //    }
+        //    streamMovie(convertedPath, res, req);
+        //});
+        console.log('No se puede reproducir archivos .mkv');
     } else {
         streamMovie(filePath, res, req);
     }
