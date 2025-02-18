@@ -3,41 +3,20 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
+// DATABASE IMPORTS
+require('dotenv').config();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const db = require('./db');
 
 const app = express();
-const PORT = 8000;
 
 app.use(cors());
 app.use(express.json()); // Middleware para procesar JSON en el body de la petición
 
-let MOVIES_DIR = 'E:/Peliculas/Peliculas';
-
-// Función para convertir archivos .mkv a .mp4 solo si es necesario
-function convertToMp4(filePath, outputDir, callback) {
-    const fileName = path.basename(filePath, path.extname(filePath)) + '.mp4';
-    const outputPath = path.join(outputDir, fileName);
-
-    if (fs.existsSync(outputPath)) {
-        console.log(`✅ El archivo ya existe: ${outputPath}`);
-        return callback(null, outputPath);
-    }
-
-    console.log(`🔄 Convirtiendo ${filePath} a formato .mp4...`);
-
-    ffmpeg(filePath)
-        .output(outputPath)
-        .videoCodec('copy')
-        .audioCodec('copy')
-        .on('end', () => {
-            console.log(`✅ Conversión completa: ${outputPath}`);
-            callback(null, outputPath);
-        })
-        .on('error', (err) => {
-            console.error(`❌ Error al convertir ${filePath}:`, err);
-            callback(err);
-        })
-        .run();
-}
+const JWT_SECRET = process.env.JWT_SECRET;
+const MOVIES_DIR = process.env.MOVIES_DIR;
+const PORT = process.env.PORT;
 
 // Función para manejar el streaming del archivo de video
 function streamMovie(moviePath, res, req) {
@@ -78,6 +57,7 @@ function streamMovie(moviePath, res, req) {
 
 // <<< --- RUTAS --- >>> //
 
+// <<< --- RUTAS GET --- >>> //
 // Ruta principal
 app.get('/', (req, res) => {
     res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
@@ -109,16 +89,78 @@ app.get('/stream/:movie', (req, res) => {
     const ext = path.extname(requestedFile).toLowerCase();
 
     if (ext === '.mkv') {
-        //convertToMp4(filePath, MOVIES_DIR, (err, convertedPath) => {
-        //    if (err) {
-        //        return res.status(500).send('Error al convertir la película.');
-        //    }
-        //    streamMovie(convertedPath, res, req);
-        //});
         console.log('No se puede reproducir archivos .mkv');
+        console.log('Pero vamos a intentar de todas formas...');
+        streamMovie(filePath, res, req);
     } else {
         streamMovie(filePath, res, req);
     }
+});
+
+// 📌 Ruta protegida (requiere token)
+app.get('/perfil', verificarToken, (req, res) => {
+    res.json({ message: 'Bienvenido al perfil protegido', user: req.user });
+  });
+  
+  // Middleware para verificar token
+  function verificarToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
+  
+    jwt.verify(token.split(' ')[1], JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).json({ error: 'Token inválido' });
+  
+      req.user = decoded;
+      next();
+    });
+}
+
+// <<< --- RUTAS POST --- >>> //
+app.post('/register', async (req, res) => {
+    const { nombre, password } = req.body;
+  
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    // Insertar usuario en la base de datos
+    db.query(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [nombre, hashedPassword],
+      (err, result) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ error: 'Error al registrar usuario' });
+        }
+        res.json({ message: 'Usuario registrado con éxito' });
+      }
+    );
+});
+
+// 📌 Ruta para iniciar sesión
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+  
+    // Buscar usuario por username
+    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+      if (err) return res.status(500).json({ error: 'Error en el servidor' });
+  
+      if (results.length === 0) {
+        return res.status(401).json({ error: 'Usuario no encontrado' });
+      }
+  
+      const user = results[0];
+  
+      // Comparar la contraseña con la almacenada en la DB
+      const isMatch = await bcrypt.compare(password, user.Password);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
+      }
+  
+      // Crear token JWT
+      const token = jwt.sign({ id: user.id, username: user.Username }, JWT_SECRET, { expiresIn: '1h' });
+  
+      res.json({ message: 'Inicio de sesión exitoso', token });
+    });
 });
 
 // Ruta para actualizar la ruta de la carpeta de películas
@@ -135,7 +177,7 @@ app.post('/movies/set-path', (req, res) => {
 });
 
 // Iniciar el servidor
-app.listen(PORT, () => {
-    console.log(`🎬 Servidor funcionando en http://localhost:${PORT}`);
-    console.log(`📜 Películas disponibles en http://localhost:${PORT}/movies`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🎬 Servidor funcionando en http://192.168.1.83:${PORT}`);
+    console.log(`📜 Películas disponibles en http://192.168.1.83:${PORT}/movies`);
 });
