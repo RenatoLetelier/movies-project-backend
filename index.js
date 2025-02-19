@@ -2,21 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
-// DATABASE IMPORTS
+//const ffmpeg = require('fluent-ffmpeg');
 require('dotenv').config();
-const bcrypt = require('bcryptjs');
+const authRoutes = require('./routes/authRoutes');
 const jwt = require('jsonwebtoken');
-const db = require('./db');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json()); // Middleware para procesar JSON en el body de la petición
+app.use('/api/auth', authRoutes);
 
-const JWT_SECRET = process.env.JWT_SECRET;
 const MOVIES_DIR = process.env.MOVIES_DIR;
 const PORT = process.env.PORT;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Función para manejar el streaming del archivo de video
 function streamMovie(moviePath, res, req) {
@@ -53,6 +52,19 @@ function streamMovie(moviePath, res, req) {
         res.writeHead(200, head);
         fs.createReadStream(moviePath).pipe(res);
     }
+}
+
+// Middleware para verificar token
+function verificarToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
+  
+    jwt.verify(token.split(' ')[1], JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).json({ error: 'Token inválido' });
+  
+      req.user = decoded;
+      next();
+    });
 }
 
 // <<< --- RUTAS --- >>> //
@@ -98,69 +110,8 @@ app.get('/stream/:movie', (req, res) => {
 });
 
 // 📌 Ruta protegida (requiere token)
-app.get('/perfil', verificarToken, (req, res) => {
+app.get('/profile', verificarToken, (req, res) => {
     res.json({ message: 'Bienvenido al perfil protegido', user: req.user });
-  });
-  
-  // Middleware para verificar token
-  function verificarToken(req, res, next) {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
-  
-    jwt.verify(token.split(' ')[1], JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).json({ error: 'Token inválido' });
-  
-      req.user = decoded;
-      next();
-    });
-}
-
-// <<< --- RUTAS POST --- >>> //
-app.post('/register', async (req, res) => {
-    const { nombre, password } = req.body;
-  
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-  
-    // Insertar usuario en la base de datos
-    db.query(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [nombre, hashedPassword],
-      (err, result) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ error: 'Error al registrar usuario' });
-        }
-        res.json({ message: 'Usuario registrado con éxito' });
-      }
-    );
-});
-
-// 📌 Ruta para iniciar sesión
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-  
-    // Buscar usuario por username
-    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
-      if (err) return res.status(500).json({ error: 'Error en el servidor' });
-  
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Usuario no encontrado' });
-      }
-  
-      const user = results[0];
-  
-      // Comparar la contraseña con la almacenada en la DB
-      const isMatch = await bcrypt.compare(password, user.Password);
-      if (!isMatch) {
-        return res.status(401).json({ error: 'Contraseña incorrecta' });
-      }
-  
-      // Crear token JWT
-      const token = jwt.sign({ id: user.id, username: user.Username }, JWT_SECRET, { expiresIn: '1h' });
-  
-      res.json({ message: 'Inicio de sesión exitoso', token });
-    });
 });
 
 // Ruta para actualizar la ruta de la carpeta de películas
