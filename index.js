@@ -10,12 +10,13 @@ const jwt = require('jsonwebtoken');
 const app = express();
 
 app.use(cors());
-app.use(express.json()); // Middleware para procesar JSON en el body de la petición
+app.use(express.json());
 app.use('/api/auth', authRoutes);
 
 const MOVIES_DIR = process.env.MOVIES_DIR;
 const PORT = process.env.PORT;
 const JWT_SECRET = process.env.JWT_SECRET;
+const DB_HOST = process.env.DB_HOST;
 
 // Función para manejar el streaming del archivo de video
 function streamMovie(moviePath, res, req) {
@@ -67,9 +68,6 @@ function verificarToken(req, res, next) {
     });
 }
 
-// <<< --- RUTAS --- >>> //
-
-// <<< --- RUTAS GET --- >>> //
 // Ruta principal
 app.get('/', (req, res) => {
     res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
@@ -129,6 +127,5 @@ app.post('/movies/set-path', (req, res) => {
 
 // Iniciar el servidor
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🎬 Servidor funcionando en http://192.168.1.83:${PORT}`);
-    console.log(`📜 Películas disponibles en http://192.168.1.83:${PORT}/movies`);
+    console.log(`✅ Servidor funcionando en http://${DB_HOST}:${PORT}`);
 });

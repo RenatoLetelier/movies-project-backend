@@ -9,10 +9,8 @@ const register = async (req, res) => {
         // Verificar si el usuario ya existe en la base de datos
         db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
             if (err) {
-                console.error('Error en la consulta:', err);
                 return res.status(500).json({ error: 'Error en el servidor' });
             }
-
             if (results.length > 0) {
                 return res.status(400).json({ message: 'El usuario ya existe' });
             }
@@ -26,7 +24,6 @@ const register = async (req, res) => {
                 [username, hashedPassword],
                 (err, result) => {
                     if (err) {
-                        console.error('Error al insertar usuario:', err);
                         return res.status(500).json({ error: 'Error al registrar usuario' });
                     }
                     res.status(201).json({ message: 'Usuario registrado con éxito' });
@@ -34,7 +31,6 @@ const register = async (req, res) => {
             );
         });
     } catch (error) {
-        console.error('Error en el registro:', error);
         res.status(500).json({ error: 'Error en el registro' });
     }
 };
@@ -46,10 +42,8 @@ const login = async (req, res) => {
         // Buscar usuario por username en la base de datos
         db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
             if (err) {
-                console.error('Error en la consulta:', err);
                 return res.status(500).json({ error: 'Error en el servidor' });
             }
-
             if (results.length === 0) {
                 return res.status(401).json({ error: 'Usuario no encontrado' });
             }
@@ -72,7 +66,6 @@ const login = async (req, res) => {
             res.json({ message: 'Inicio de sesión exitoso', token });
         });
     } catch (error) {
-        console.error('Error en el login:', error);
         res.status(500).json({ error: 'Error en el login' });
     }
 };
