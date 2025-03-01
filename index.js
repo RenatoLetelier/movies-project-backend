@@ -4,14 +4,20 @@ const fs = require('fs');
 const path = require('path');
 //const ffmpeg = require('fluent-ffmpeg');
 require('dotenv').config();
-const authRoutes = require('./routes/authRoutes');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+
+const authRoutes = require('./routes/authRoutes');
+//const moviesRoutes = require('./routes/moviesRoutes');
+const photosRoutes = require('./routes/photosRoutes');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+//app.use('/api/movies', moviesRoutes);
+app.use('/api/photos', photosRoutes);
 
 const MOVIES_DIR = process.env.MOVIES_DIR;
 const PORT = process.env.PORT;
@@ -68,6 +74,17 @@ function verificarToken(req, res, next) {
     });
 }
 
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage: storage });
+
 // Ruta principal
 app.get('/', (req, res) => {
     res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
@@ -110,19 +127,6 @@ app.get('/stream/:movie', (req, res) => {
 // 📌 Ruta protegida (requiere token)
 app.get('/profile', verificarToken, (req, res) => {
     res.json({ message: 'Bienvenido al perfil protegido', user: req.user });
-});
-
-// Ruta para actualizar la ruta de la carpeta de películas
-app.post('/movies/set-path', (req, res) => {
-    const { path: newPath } = req.body;
-
-    if (!newPath || !fs.existsSync(newPath)) {
-        return res.status(400).send('Ruta no válida o no encontrada.');
-    }
-
-    MOVIES_DIR = newPath;
-    console.log(`📁 Ruta de películas actualizada: ${MOVIES_DIR}`);
-    res.send(`Ruta de películas actualizada: ${MOVIES_DIR}`);
 });
 
 // Iniciar el servidor
