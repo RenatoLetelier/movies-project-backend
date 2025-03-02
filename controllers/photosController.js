@@ -1,4 +1,5 @@
 const db = require('../models/db');
+const fs = require('fs');
 
 const getAllPhotos = async (req, res) => {
     try {
@@ -55,9 +56,6 @@ const getAllPhotos = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-const path = require('path');
-const fs = require('fs');
 
 const getPhotoById = async (req, res) => {
     try {

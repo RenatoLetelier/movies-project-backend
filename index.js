@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 
 const authRoutes = require('./routes/authRoutes');
-//const moviesRoutes = require('./routes/moviesRoutes');
+const moviesRoutes = require('./routes/moviesRoutes');
 const photosRoutes = require('./routes/photosRoutes');
 
 const app = express();
@@ -16,13 +16,37 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
-//app.use('/api/movies', moviesRoutes);
+app.use('/api/movies', moviesRoutes);
 app.use('/api/photos', photosRoutes);
 
 const MOVIES_DIR = process.env.MOVIES_DIR;
 const PORT = process.env.PORT;
 const JWT_SECRET = process.env.JWT_SECRET;
 const DB_HOST = process.env.DB_HOST;
+
+// Middleware para verificar token
+function verificarToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
+  
+    jwt.verify(token.split(' ')[1], JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).json({ error: 'Token inválido' });
+  
+      req.user = decoded;
+      next();
+    });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage: storage });
 
 // Función para manejar el streaming del archivo de video
 function streamMovie(moviePath, res, req) {
@@ -61,36 +85,6 @@ function streamMovie(moviePath, res, req) {
     }
 }
 
-// Middleware para verificar token
-function verificarToken(req, res, next) {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
-  
-    jwt.verify(token.split(' ')[1], JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).json({ error: 'Token inválido' });
-  
-      req.user = decoded;
-      next();
-    });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
-});
-
-const upload = multer({ storage: storage });
-
-// Ruta principal
-app.get('/', (req, res) => {
-    res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
-});
-
-// Ruta para listar todas las películas disponibles
 app.get('/movies', (req, res) => {
     fs.readdir(MOVIES_DIR, (err, files) => {
         if (err) {
@@ -122,6 +116,11 @@ app.get('/stream/:movie', (req, res) => {
     } else {
         streamMovie(filePath, res, req);
     }
+});
+
+// Ruta principal
+app.get('/', (req, res) => {
+    res.send('Servidor de películas funcionando correctamente. Visita /movies para ver la lista de películas.');
 });
 
 // 📌 Ruta protegida (requiere token)
