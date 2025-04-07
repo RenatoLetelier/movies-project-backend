@@ -1,0 +1,31 @@
+{
+    "id": 1,
+    "name": "Sunset at the Beach",
+    "description": "A beautiful sunset over the ocean.",
+    "uploadBy": "John Doe",
+    "isFavorite": true,
+    "isPrivate": false,
+    "orientation": "horizontal",
+    "path": "/photos/sunset.jpg",
+    "tags": [
+        "Sunset",
+        "Beach",
+        "Nature",
+        "Landscape"
+    ],
+    "albums": [
+        "Vacations",
+        "Favorites"
+    ],
+    "metadata": {
+        "location": "Hawaii, USA",
+        "dimensions": "1920x1080",
+        "size": "3.5MB",
+        "photoDate": "2024-06-12",
+        "photoTime": "18:30:00",
+        "people": [
+            "John Doe",
+            "Jane Doe"
+        ]
+    }
+}

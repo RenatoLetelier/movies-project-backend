@@ -1,5 +1,18 @@
 const db = require('../models/db');
 const fs = require('fs');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage: storage });
 
 const getAllPhotos = async (req, res) => {
     try {
@@ -7,26 +20,34 @@ const getAllPhotos = async (req, res) => {
             SELECT 
                 p.id, 
                 p.name, 
+                p.description, 
                 p.uploadBy, 
-                p.isSecret, 
                 p.isFavorite, 
+                p.isPrivate, 
                 p.orientation, 
-                p.path,
-                GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS categories,
-                m.year, 
+                p.path, 
                 m.location, 
-                m.people, 
+                m.dimensions, 
+                m.size, 
                 m.photoDate, 
                 m.photoTime, 
-                m.description
+                GROUP_CONCAT(DISTINCT t.name SEPARATOR ', ') AS tags, 
+                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS albums, 
+                GROUP_CONCAT(DISTINCT pe.name SEPARATOR ', ') AS people
             FROM photos p
-            LEFT JOIN categories c ON p.id = c.photo_id
             LEFT JOIN metadata m ON p.id = m.photo_id
-            GROUP BY p.id, m.id;
+            LEFT JOIN photo_tags pt ON p.id = pt.photo_id
+            LEFT JOIN tags t ON pt.tag_id = t.id
+            LEFT JOIN photo_albums pa ON p.id = pa.photo_id
+            LEFT JOIN albums a ON pa.album_id = a.id
+            LEFT JOIN photo_people pp ON p.id = pp.photo_id
+            LEFT JOIN people pe ON pp.person_id = pe.id
+            GROUP BY p.id, m.location, m.dimensions, m.size, m.photoDate, m.photoTime;
         `;
 
         db.query(query, (err, results) => {
             if (err) {
+                console.error('Error >>> ', err);
                 return res.status(500).json({ error: 'Error al obtener las fotos' });
             }
 
@@ -34,20 +55,22 @@ const getAllPhotos = async (req, res) => {
             const formattedResults = results.map(photo => ({
                 id: photo.id,
                 name: photo.name,
+                description: photo.description,
                 uploadBy: photo.uploadBy,
-                isSecret: !!photo.isSecret,
                 isFavorite: !!photo.isFavorite,
+                isPrivate: !!photo.isPrivate,
                 orientation: photo.orientation,
                 path: photo.path,
-                category: photo.categories ? photo.categories.split(', ') : [],
                 metadata: {
-                    year: photo.year,
                     location: photo.location,
-                    people: photo.people ? photo.people.split(', ') : [],
+                    dimensions: photo.dimensions,
+                    size: photo.size,
                     photoDate: photo.photoDate,
-                    photoTime: photo.photoTime,
-                    description: photo.description
-                }
+                    photoTime: photo.photoTime
+                },
+                tags: photo.tags ? photo.tags.split(', ') : [],
+                albums: photo.albums ? photo.albums.split(', ') : [],
+                people: photo.people ? photo.people.split(', ') : []
             }));
 
             res.status(200).json(formattedResults);
@@ -65,28 +88,35 @@ const getPhotoById = async (req, res) => {
             SELECT 
                 p.id, 
                 p.name, 
+                p.description, 
                 p.uploadBy, 
-                p.isSecret, 
                 p.isFavorite, 
+                p.isPrivate, 
                 p.orientation, 
-                p.path,
-                GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS categories,
-                m.year, 
+                p.path, 
                 m.location, 
-                m.people, 
+                m.dimensions, 
+                m.size, 
                 m.photoDate, 
                 m.photoTime, 
-                m.description
+                GROUP_CONCAT(DISTINCT t.name SEPARATOR ', ') AS tags, 
+                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS albums, 
+                GROUP_CONCAT(DISTINCT pe.name SEPARATOR ', ') AS people
             FROM photos p
-            LEFT JOIN categories c ON p.id = c.photo_id
             LEFT JOIN metadata m ON p.id = m.photo_id
+            LEFT JOIN photo_tags pt ON p.id = pt.photo_id
+            LEFT JOIN tags t ON pt.tag_id = t.id
+            LEFT JOIN photo_albums pa ON p.id = pa.photo_id
+            LEFT JOIN albums a ON pa.album_id = a.id
+            LEFT JOIN photo_people pp ON p.id = pp.photo_id
+            LEFT JOIN people pe ON pp.person_id = pe.id
             WHERE p.id = ?
-            GROUP BY p.id, m.id;
+            GROUP BY p.id, m.location, m.dimensions, m.size, m.photoDate, m.photoTime;
         `;
 
         db.query(query, [id], (err, results) => {
             if (err) {
-                return res.status(500).json({ error: 'Error al obtener la foto' });
+                return res.status(500).json({ error: 'Error al obtener la foto con id: ' + req.params.id });
             }
             if (results.length === 0) {
                 return res.status(404).json({ message: 'Foto no encontrada' });
@@ -94,61 +124,31 @@ const getPhotoById = async (req, res) => {
 
             const photo = results[0];
             const filePath = photo.path;
-
             const fileExists = fs.existsSync(filePath);
 
             const formattedPhoto = {
                 id: photo.id,
                 name: photo.name,
+                description: photo.description,
                 uploadBy: photo.uploadBy,
-                isSecret: !!photo.isSecret,
                 isFavorite: !!photo.isFavorite,
+                isPrivate: !!photo.isPrivate,
                 orientation: photo.orientation,
                 path: photo.path,
                 fileExists: fileExists,
-                category: photo.categories ? photo.categories.split(', ') : [],
                 metadata: {
-                    year: photo.year,
                     location: photo.location,
-                    people: photo.people ? photo.people.split(', ') : [],
+                    dimensions: photo.dimensions,
+                    size: photo.size,
                     photoDate: photo.photoDate,
-                    photoTime: photo.photoTime,
-                    description: photo.description
-                }
+                    photoTime: photo.photoTime
+                },
+                tags: photo.tags ? photo.tags.split(', ') : [],
+                albums: photo.albums ? photo.albums.split(', ') : [],
+                people: photo.people ? photo.people.split(', ') : []
             };
 
             res.status(200).json(formattedPhoto);
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-const seePhoto = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const query = `
-            SELECT path 
-            FROM photos 
-            WHERE id = ?
-        `;
-
-        db.query(query, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al obtener la foto' });
-            }
-            if (results.length === 0) {
-                return res.status(404).json({ message: 'Foto no encontrada' });
-            }
-
-            const filePath = results[0].path;
-
-            if (fs.existsSync(filePath)) {
-                return res.sendFile(filePath);
-            } else {
-                return res.status(404).json({ message: 'Archivo de la foto no encontrado' });
-            }
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -164,19 +164,55 @@ const createPhoto = async (req, res) => {
                 return res.status(500).json({ message: 'Error al subir la foto', error: err.message });
             }
 
-            const { title } = req.body;
-            if (!title || !req.file) {
-                return res.status(400).json({ message: 'Título y archivo son requeridos' });
+            const { name, description, uploadBy, isFavorite, isPrivate, orientation, location, dimensions, size, photoDate, photoTime, tags, albums, people } = req.body;
+            if (!name || !req.file) {
+                return res.status(400).json({ message: 'Nombre y archivo son requeridos' });
             }
 
             const filePath = req.file.path;
 
-            db.query('INSERT INTO photos (title, url) VALUES (?, ?)', [title, filePath], (err, result) => {
-                if (err) {
-                    return res.status(500).json({ error: 'Error al crear la foto en la base de datos' });
+            // Insertar en la tabla photos
+            db.query('INSERT INTO photos (name, description, uploadBy, isFavorite, isPrivate, orientation, path) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+                [name, description, uploadBy, isFavorite, isPrivate, orientation, filePath], 
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: 'Error al crear la foto en la base de datos' });
+                    }
+
+                    const photoId = result.insertId;
+
+                    // Insertar en metadata
+                    db.query('INSERT INTO metadata (photo_id, location, dimensions, size, photoDate, photoTime) VALUES (?, ?, ?, ?, ?, ?)',
+                        [photoId, location, dimensions, size, photoDate, photoTime], (err) => {
+                            if (err) {
+                                return res.status(500).json({ error: 'Error al agregar metadatos' });
+                            }
+                        });
+
+                    // Insertar en tags
+                    if (tags && tags.length > 0) {
+                        tags.split(', ').forEach(tag => {
+                            db.query('INSERT INTO photo_tags (photo_id, tag_id) SELECT ?, id FROM tags WHERE name = ?', [photoId, tag]);
+                        });
+                    }
+
+                    // Insertar en albums
+                    if (albums && albums.length > 0) {
+                        albums.split(', ').forEach(album => {
+                            db.query('INSERT INTO photo_albums (photo_id, album_id) SELECT ?, id FROM albums WHERE name = ?', [photoId, album]);
+                        });
+                    }
+
+                    // Insertar en people
+                    if (people && people.length > 0) {
+                        people.split(', ').forEach(person => {
+                            db.query('INSERT INTO photo_people (photo_id, person_id) SELECT ?, id FROM people WHERE name = ?', [photoId, person]);
+                        });
+                    }
+
+                    res.status(201).json({ message: 'Foto creada con éxito', photoId: photoId });
                 }
-                res.status(201).json({ message: 'Foto creada con éxito', photoId: result.insertId });
-            });
+            );
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -256,4 +292,15 @@ const deletePhoto = async (req, res) => {
     }
 };
 
-module.exports = {getAllPhotos, getPhotoById, seePhoto, createPhoto, updatePhoto, deletePhoto};
+const getImage = (req, res) => {
+    const fileName = req.params.name;
+    const imgRute = path.join(__dirname, '../uploads', fileName);
+  
+    res.sendFile(imgRute, err => {
+      if (err) {
+        res.status(404).send('Imagen no encontrada.');
+      }
+    });
+};
+
+module.exports = {getAllPhotos, getPhotoById, getImage, createPhoto, updatePhoto, deletePhoto};
