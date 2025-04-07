@@ -1,4 +1,4 @@
-const db = require('../models/db');
+const connectDB = require('../models/db');
 const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
@@ -15,6 +15,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 const getAllPhotos = async (req, res) => {
+    const db = await connectDB();
     try {
         const query = `
             SELECT 
@@ -45,42 +46,39 @@ const getAllPhotos = async (req, res) => {
             GROUP BY p.id, m.location, m.dimensions, m.size, m.photoDate, m.photoTime;
         `;
 
-        db.query(query, (err, results) => {
-            if (err) {
-                console.error('Error >>> ', err);
-                return res.status(500).json({ error: 'Error al obtener las fotos' });
-            }
+        const [results] = await db.query(query);
 
-            // Transformar los datos para que las categorías sean un array
-            const formattedResults = results.map(photo => ({
-                id: photo.id,
-                name: photo.name,
-                description: photo.description,
-                uploadBy: photo.uploadBy,
-                isFavorite: !!photo.isFavorite,
-                isPrivate: !!photo.isPrivate,
-                orientation: photo.orientation,
-                path: photo.path,
-                metadata: {
-                    location: photo.location,
-                    dimensions: photo.dimensions,
-                    size: photo.size,
-                    photoDate: photo.photoDate,
-                    photoTime: photo.photoTime
-                },
-                tags: photo.tags ? photo.tags.split(', ') : [],
-                albums: photo.albums ? photo.albums.split(', ') : [],
-                people: photo.people ? photo.people.split(', ') : []
-            }));
+        const formattedResults = results.map(photo => ({
+            id: photo.id,
+            name: photo.name,
+            description: photo.description,
+            uploadBy: photo.uploadBy,
+            isFavorite: !!photo.isFavorite,
+            isPrivate: !!photo.isPrivate,
+            orientation: photo.orientation,
+            path: photo.path,
+            metadata: {
+                location: photo.location,
+                dimensions: photo.dimensions,
+                size: photo.size,
+                photoDate: photo.photoDate,
+                photoTime: photo.photoTime
+            },
+            tags: photo.tags ? photo.tags.split(', ') : [],
+            albums: photo.albums ? photo.albums.split(', ') : [],
+            people: photo.people ? photo.people.split(', ') : []
+        }));
 
-            res.status(200).json(formattedResults);
-        });
+        res.status(200).json(formattedResults);
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al obtener las fotos' });
     }
 };
 
 const getPhotoById = async (req, res) => {
+    const db = await connectDB();
     try {
         const { id } = req.params;
 
@@ -114,181 +112,207 @@ const getPhotoById = async (req, res) => {
             GROUP BY p.id, m.location, m.dimensions, m.size, m.photoDate, m.photoTime;
         `;
 
-        db.query(query, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al obtener la foto con id: ' + req.params.id });
-            }
-            if (results.length === 0) {
-                return res.status(404).json({ message: 'Foto no encontrada' });
-            }
+        const [results] = await db.query(query, [id]);
 
-            const photo = results[0];
-            const filePath = photo.path;
-            const fileExists = fs.existsSync(filePath);
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Foto no encontrada' });
+        }
 
-            const formattedPhoto = {
-                id: photo.id,
-                name: photo.name,
-                description: photo.description,
-                uploadBy: photo.uploadBy,
-                isFavorite: !!photo.isFavorite,
-                isPrivate: !!photo.isPrivate,
-                orientation: photo.orientation,
-                path: photo.path,
-                fileExists: fileExists,
-                metadata: {
-                    location: photo.location,
-                    dimensions: photo.dimensions,
-                    size: photo.size,
-                    photoDate: photo.photoDate,
-                    photoTime: photo.photoTime
-                },
-                tags: photo.tags ? photo.tags.split(', ') : [],
-                albums: photo.albums ? photo.albums.split(', ') : [],
-                people: photo.people ? photo.people.split(', ') : []
-            };
+        const photo = results[0];
+        const fileExists = fs.existsSync(photo.path);
 
-            res.status(200).json(formattedPhoto);
-        });
+        const formattedPhoto = {
+            id: photo.id,
+            name: photo.name,
+            description: photo.description,
+            uploadBy: photo.uploadBy,
+            isFavorite: !!photo.isFavorite,
+            isPrivate: !!photo.isPrivate,
+            orientation: photo.orientation,
+            path: photo.path,
+            fileExists,
+            metadata: {
+                location: photo.location,
+                dimensions: photo.dimensions,
+                size: photo.size,
+                photoDate: photo.photoDate,
+                photoTime: photo.photoTime
+            },
+            tags: photo.tags ? photo.tags.split(', ') : [],
+            albums: photo.albums ? photo.albums.split(', ') : [],
+            people: photo.people ? photo.people.split(', ') : []
+        };
+
+        res.status(200).json(formattedPhoto);
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al obtener la foto' });
     }
 };
 
 const createPhoto = async (req, res) => {
+    const db = await connectDB();
     try {
-        const uploadMiddleware = upload.single('photo');
+        const { name, description, uploadBy, isFavorite, isPrivate, orientation, path, tags, albums, metadata } = req.body;
 
-        uploadMiddleware(req, res, (err) => {
-            if (err) {
-                return res.status(500).json({ message: 'Error al subir la foto', error: err.message });
-            }
+        if (!name || !path) {
+            return res.status(400).json({ message: 'Nombre y ruta del archivo son requeridos' });
+        }
 
-            const { name, description, uploadBy, isFavorite, isPrivate, orientation, location, dimensions, size, photoDate, photoTime, tags, albums, people } = req.body;
-            if (!name || !req.file) {
-                return res.status(400).json({ message: 'Nombre y archivo son requeridos' });
-            }
+        // Insertar en la tabla photos
+        const [photoResult] = await db.query(
+            'INSERT INTO photos (name, description, uploadBy, isFavorite, isPrivate, orientation, path) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, description, uploadBy, isFavorite, isPrivate, orientation, path]
+        );
 
-            const filePath = req.file.path;
+        const photoId = photoResult.insertId;
 
-            // Insertar en la tabla photos
-            db.query('INSERT INTO photos (name, description, uploadBy, isFavorite, isPrivate, orientation, path) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                [name, description, uploadBy, isFavorite, isPrivate, orientation, filePath], 
-                (err, result) => {
-                    if (err) {
-                        return res.status(500).json({ error: 'Error al crear la foto en la base de datos' });
-                    }
+        // Insertar en metadata
+        await db.query(
+            'INSERT INTO metadata (photo_id, location, dimensions, size, photoDate, photoTime) VALUES (?, ?, ?, ?, ?, ?)',
+            [photoId, metadata.location, metadata.dimensions, metadata.size, metadata.photoDate, metadata.photoTime]
+        );
 
-                    const photoId = result.insertId;
+        // Insertar en tags
+        if (tags && tags.length > 0) {
+            await Promise.all(tags.map(async (tag) => {
+                await db.query('INSERT INTO photo_tags (photo_id, tag_id) SELECT ?, id FROM tags WHERE name = ?', [photoId, tag]);
+            }));
+        }
 
-                    // Insertar en metadata
-                    db.query('INSERT INTO metadata (photo_id, location, dimensions, size, photoDate, photoTime) VALUES (?, ?, ?, ?, ?, ?)',
-                        [photoId, location, dimensions, size, photoDate, photoTime], (err) => {
-                            if (err) {
-                                return res.status(500).json({ error: 'Error al agregar metadatos' });
-                            }
-                        });
+        // Insertar en albums
+        if (albums && albums.length > 0) {
+            await Promise.all(albums.map(async (album) => {
+                await db.query('INSERT INTO photo_albums (photo_id, album_id) SELECT ?, id FROM albums WHERE name = ?', [photoId, album]);
+            }));
+        }
 
-                    // Insertar en tags
-                    if (tags && tags.length > 0) {
-                        tags.split(', ').forEach(tag => {
-                            db.query('INSERT INTO photo_tags (photo_id, tag_id) SELECT ?, id FROM tags WHERE name = ?', [photoId, tag]);
-                        });
-                    }
+        // Insertar en people
+        if (metadata.people && metadata.people.length > 0) {
+            await Promise.all(metadata.people.map(async (person) => {
+                await db.query('INSERT INTO photo_people (photo_id, person_id) SELECT ?, id FROM people WHERE name = ?', [photoId, person]);
+            }));
+        }
 
-                    // Insertar en albums
-                    if (albums && albums.length > 0) {
-                        albums.split(', ').forEach(album => {
-                            db.query('INSERT INTO photo_albums (photo_id, album_id) SELECT ?, id FROM albums WHERE name = ?', [photoId, album]);
-                        });
-                    }
+        res.status(201).json({ message: 'Foto creada con éxito', photoId });
 
-                    // Insertar en people
-                    if (people && people.length > 0) {
-                        people.split(', ').forEach(person => {
-                            db.query('INSERT INTO photo_people (photo_id, person_id) SELECT ?, id FROM people WHERE name = ?', [photoId, person]);
-                        });
-                    }
-
-                    res.status(201).json({ message: 'Foto creada con éxito', photoId: photoId });
-                }
-            );
-        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: error.message || 'Error al crear la foto', error });
     }
 };
 
 const updatePhoto = async (req, res) => {
+    const db = await connectDB();
+    const photoId = req.params.id;
+    const {
+      name,
+      description,
+      uploadBy,
+      isFavorite,
+      isPrivate,
+      orientation,
+      path,
+      tags,
+      albums,
+      metadata
+    } = req.body;
+  
     try {
-        const { id } = req.params;  // El ID de la foto que se va a actualizar
-        const { title, category, metadata } = req.body; // Los nuevos datos a actualizar
-        
-        // Validamos que al menos uno de los campos a actualizar sea enviado
-        if (!title && !category && !metadata) {
-            return res.status(400).json({ message: 'Debe proporcionar al menos un campo para actualizar' });
+      // 1. Actualizar tabla photos
+      await db.query(`
+        UPDATE photos SET 
+          name=?, description=?, uploadBy=?, 
+          isFavorite=?, isPrivate=?, orientation=?, path=?
+        WHERE id=?`,
+        [name, description, uploadBy, isFavorite, isPrivate, orientation, path, photoId]
+      );
+  
+      // 2. Actualizar tabla metadata
+      await db.query(`
+        UPDATE metadata SET 
+          location=?, dimensions=?, size=?, photoDate=?, photoTime=?
+        WHERE photo_id=?`,
+        [metadata.location, metadata.dimensions, metadata.size, metadata.photoDate, metadata.photoTime, photoId]
+      );
+  
+      // 3. Limpiar relaciones existentes (photos_tags, photos_album, photos_people)
+      await Promise.all([
+        db.query('DELETE FROM photo_tags WHERE photo_id=?', [photoId]),
+        db.query('DELETE FROM photo_albums WHERE photo_id=?', [photoId]),
+        db.query('DELETE FROM photo_people WHERE photo_id=?', [photoId]),
+      ]);
+  
+      // 4. Insertar nuevas relaciones: tags
+      for (const tagName of tags) {
+        const [tagRows] = await db.query('SELECT id FROM tags WHERE name=?', [tagName]);
+        let tagId;
+  
+        if (tagRows.length > 0) {
+          tagId = tagRows[0].id;
+        } else {
+          const [result] = await db.query('INSERT INTO tags (name) VALUES (?)', [tagName]);
+          tagId = result.insertId;
         }
-
-        // Consulta SQL para actualizar la foto con la nueva información
-        let updateQuery = 'UPDATE photos SET ';
-        let updateValues = [];
-
-        // Solo actualizamos el campo si se recibe un nuevo valor
-        if (title) {
-            updateQuery += 'title = ?, ';
-            updateValues.push(title);
+  
+        await db.query('INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?)', [photoId, tagId]);
+      }
+  
+      // 5. Insertar nuevas relaciones: albums
+      for (const albumName of albums) {
+        const [albumRows] = await db.query('SELECT id FROM albums WHERE name=?', [albumName]);
+        let albumId;
+  
+        if (albumRows.length > 0) {
+          albumId = albumRows[0].id;
+        } else {
+          const [result] = await db.query('INSERT INTO albums (name) VALUES (?)', [albumName]);
+          albumId = result.insertId;
         }
-
-        if (category) {
-            updateQuery += 'category = ?, ';
-            updateValues.push(category);
+  
+        await db.query('INSERT INTO photo_albums (photo_id, album_id) VALUES (?, ?)', [photoId, albumId]);
+      }
+  
+      // 6. Insertar nuevas relaciones: people
+      for (const personName of metadata.people) {
+        const [peopleRows] = await db.query('SELECT id FROM people WHERE name=?', [personName]);
+        let personId;
+  
+        if (peopleRows.length > 0) {
+          personId = peopleRows[0].id;
+        } else {
+          const [result] = await db.query('INSERT INTO people (name) VALUES (?)', [personName]);
+          personId = result.insertId;
         }
-
-        if (metadata) {
-            updateQuery += 'metadata = ? ';
-            updateValues.push(JSON.stringify(metadata));  // Guardamos metadata como JSON
-        }
-
-        // Eliminamos la última coma y espacio
-        updateQuery = updateQuery.trim().replace(/,$/, '');
-        
-        // Añadimos el ID de la foto para la cláusula WHERE
-        updateQuery += ' WHERE id = ?';
-        updateValues.push(id);
-
-        // Ejecutamos la consulta para actualizar la base de datos
-        db.query(updateQuery, updateValues, (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al actualizar la foto' });
-            }
-
-            // Si no se encuentra ninguna fila afectada, significa que no hay foto con ese ID
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: 'Foto no encontrada' });
-            }
-
-            res.status(200).json({ message: 'Foto actualizada con éxito' });
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+  
+        await db.query('INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?)', [photoId, personId]);
+      }
+  
+      res.status(200).json({ message: 'Foto actualizada exitosamente.' });
+  
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al actualizar la foto.' });
     }
-};
-
+  };
 
 const deletePhoto = async (req, res) => {
+    const db = await connectDB();
     try {
         const { id } = req.params;
-        db.query('DELETE FROM photos WHERE id = ?', [id], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al eliminar la foto' });
-            }
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: 'Foto no encontrada' });
-            }
-            res.status(200).json({ message: 'Foto eliminada con éxito' });
-        });
+
+        const [result] = await db.query('DELETE FROM photos WHERE id = ?', [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Foto no encontrada' });
+        }
+
+        res.status(200).json({ message: 'Foto eliminada con éxito' });
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al eliminar la foto', error });
     }
 };
 
