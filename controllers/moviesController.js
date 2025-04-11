@@ -1,7 +1,283 @@
-const db = require('../models/db');
+const connectDB = require('../models/Movies_db');
+const fs = require('fs');
+const { console } = require('inspector');
+const path = require('path');
+
+const getAllMovies = async (req, res) => {
+    const db = await connectDB();
+    try {
+        const query = `
+            SELECT 
+                m.id, 
+                m.title, 
+                m.subtitle,
+                m.description,
+                m.imgBanner,
+                m.year, 
+                m.director, 
+                m.duration, 
+                m.seen,
+                m.rating,
+                m.trailer,
+                m.path,
+                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
+                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
+            FROM movies m
+            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+            LEFT JOIN genres g ON mg.genre_id = g.id
+            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
+            LEFT JOIN actors a ON ma.actor_id = a.id
+            GROUP BY m.id;
+        `;
+
+        const [results] = await db.query(query);
+
+        const formattedResults = results.map(movie => ({
+            id: movie.id,
+            title: movie.title,
+            subtitle: movie.subtitle,
+            description: movie.description,
+            imgBanner: movie.imgBanner,
+            year: movie.year,
+            director: movie.director,
+            duration: movie.duration,
+            seen: !!movie.seen,
+            rating: movie.rating,
+            trailer: movie.trailer,
+            path: movie.path,
+            genre: movie.genres ? movie.genres.split(', ') : [],
+            actors: movie.actors ? movie.actors.split(', ') : []
+        }));
+
+        res.status(200).json(formattedResults);
+
+    } catch (error) {
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al obtener las películas' });
+    }
+};
+
+const getMovieById = async (req, res) => {
+    const db = await connectDB();
+    try {
+        const { id } = req.params;
+
+        const query = `
+            SELECT 
+                m.id, 
+                m.title, 
+                m.subtitle,
+                m.description,
+                m.imgBanner,
+                m.year, 
+                m.director, 
+                m.duration, 
+                m.seen,
+                m.rating,
+                m.trailer,
+                m.path,
+                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
+                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
+            FROM movies m
+            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+            LEFT JOIN genres g ON mg.genre_id = g.id
+            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
+            LEFT JOIN actors a ON ma.actor_id = a.id
+            WHERE m.id = ?
+            GROUP BY m.id;
+        `;
+
+        const [results] = await db.query(query, [id]);
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Película no encontrada' });
+        }
+
+        const movie = results[0];
+        const fileExists = fs.existsSync(movie.path);
+
+        const formattedMovie = {
+            id: movie.id,
+            title: movie.title,
+            subtitle: movie.subtitle,
+            description: movie.description,
+            imgBanner: movie.imgBanner,
+            year: movie.year,
+            director: movie.director,
+            duration: movie.duration,
+            seen: !!movie.seen,
+            rating: movie.rating,
+            trailer: movie.trailer,
+            path: movie.path,
+            fileExists,
+            genre: movie.genres ? movie.genres.split(', ') : [],
+            actors: movie.actors ? movie.actors.split(', ') : []
+        };
+
+        res.status(200).json(formattedMovie);
+
+    } catch (error) {
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al obtener la película' });
+    }
+};
+
+const createMovie = async (req, res) => {
+    const db = await connectDB();
+    try {
+        const {
+            title, subtitle, description, imgBanner, year,
+            director, duration, seen, rating, trailer, path,
+            actors, genres
+        } = req.body;
+
+        if (!title || !path) {
+            return res.status(400).json({ message: 'Título y ruta del archivo son requeridos' });
+        }
+
+        // Insertar en movies
+        const [movieResult] = await db.query(
+            `INSERT INTO movies 
+            (title, subtitle, description, imgBanner, year, director, duration, seen, rating, trailer, path) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [title, subtitle, description, imgBanner, year, director, duration, seen, rating, trailer, path]
+        );
+
+        const movieId = movieResult.insertId;
+
+        // Insertar en movies_actors
+        if (actors && actors.length > 0) {
+            await Promise.all(actors.map(async (actor) => {
+                await db.query(
+                    'INSERT INTO movie_actors (movie_id, actor_id) SELECT ?, id FROM actors WHERE name = ?',
+                    [movieId, actor]
+                );
+            }));
+        }
+
+        // Insertar en movies_genres
+        if (genres && genres.length > 0) {
+            await Promise.all(genres.map(async (genre) => {
+                await db.query(
+                    'INSERT INTO movie_genres (movie_id, genre_id) SELECT ?, id FROM genres WHERE name = ?',
+                    [movieId, genre]
+                );
+            }));
+        }
+
+        res.status(201).json({ message: 'Película creada con éxito', movieId });
+
+    } catch (error) {
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: error.message || 'Error al crear la película', error });
+    }
+};
+
+const updateMovie = async (req, res) => {
+    const db = await connectDB();
+    const movieId = req.params.id;
+    const {
+      title,
+      subtitle,
+      description,
+      imgBanner,
+      year,
+      director,
+      duration,
+      seen,
+      rating,
+      trailer,
+      path,
+      genres,
+      actors
+    } = req.body;
+  
+    try {
+      // 1. Actualizar tabla movies
+      await db.query(`
+        UPDATE movies SET 
+          title=?, subtitle=?, description=?, imgBanner=?, 
+          year=?, director=?, duration=?, seen=?, 
+          rating=?, trailer=?, path=?
+        WHERE id=?`,
+        [
+          title, subtitle, description, imgBanner,
+          year, director, duration, seen,
+          rating, trailer, path, movieId
+        ]
+      );
+  
+      // 2. Limpiar relaciones existentes
+      await Promise.all([
+        db.query('DELETE FROM movie_genres WHERE movie_id=?', [movieId]),
+        db.query('DELETE FROM movie_actors WHERE movie_id=?', [movieId])
+      ]);
+  
+      // 3. Insertar géneros nuevos (si no existen) y relacionarlos
+      for (const genreName of genres) {
+        const [genreRows] = await db.query('SELECT id FROM genres WHERE name=?', [genreName]);
+        let genreId;
+  
+        if (genreRows.length > 0) {
+          genreId = genreRows[0].id;
+        } else {
+          const [result] = await db.query('INSERT INTO genres (name) VALUES (?)', [genreName]);
+          genreId = result.insertId;
+        }
+  
+        await db.query('INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)', [movieId, genreId]);
+      }
+  
+      // 4. Insertar actores nuevos (si no existen) y relacionarlos
+      for (const actorName of actors) {
+        const [actorRows] = await db.query('SELECT id FROM actors WHERE name=?', [actorName]);
+        let actorId;
+  
+        if (actorRows.length > 0) {
+          actorId = actorRows[0].id;
+        } else {
+          const [result] = await db.query('INSERT INTO actors (name) VALUES (?)', [actorName]);
+          actorId = result.insertId;
+        }
+  
+        await db.query('INSERT INTO movie_actors (movie_id, actor_id) VALUES (?, ?)', [movieId, actorId]);
+      }
+  
+      res.status(200).json({ message: 'Película actualizada exitosamente.' });
+  
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al actualizar la película.' });
+    }
+  };
+
+  const deleteMovie = async (req, res) => {
+    const db = await connectDB();
+    try {
+        const { id } = req.params;
+
+        // Eliminar relaciones en tablas intermedias primero
+        await Promise.all([
+            db.query('DELETE FROM movie_genres WHERE movie_id = ?', [id]),
+            db.query('DELETE FROM movie_actors WHERE movie_id = ?', [id])
+        ]);
+
+        // Luego eliminar la película
+        const [result] = await db.query('DELETE FROM movies WHERE id = ?', [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Película no encontrada' });
+        }
+
+        res.status(200).json({ message: 'Película eliminada con éxito' });
+
+    } catch (error) {
+        console.error('Error >>> ', error);
+        res.status(500).json({ message: 'Error al eliminar la película', error });
+    }
+};
 
 // Función para manejar el streaming del archivo de video
-/*
 function streamMovie(moviePath, res, req) {
     if (!fs.existsSync(moviePath)) {
         return res.status(404).send('Película no encontrada.');
@@ -37,280 +313,64 @@ function streamMovie(moviePath, res, req) {
         fs.createReadStream(moviePath).pipe(res);
     }
 }
-*/
 
-const getAllMovies = async (req, res) => {
-    try {
-        const query = `
-            SELECT 
-                m.id, 
-                m.title, 
-                m.subtitle,
-                m.description,
-                m.imgBanner,
-                m.year, 
-                m.director, 
-                m.duration, 
-                m.seen,
-                m.rating,
-                m.trailer,
-                m.path,
-                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
-                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
-            FROM movies m
-            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
-            LEFT JOIN genres_v2 g ON mg.genre_id = g.id
-            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
-            LEFT JOIN actors a ON ma.actor_id = a.id
-            GROUP BY m.id;
-        `;
+const streamMovieByTitle = async (req, res) => {
+    const db = await connectDB();
+    const { title } = req.params.name;
+    console.log('title >>>', title);
 
-        db.query(query, (err, results) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({ error: 'Error al obtener las películas' });
-            }
-
-            // Transformar los datos para que los géneros y actores sean arrays
-            const formattedResults = results.map(movie => ({
-                id: movie.id,
-                title: movie.title,
-                subtitle: movie.subtitle,
-                description: movie.description,
-                imgBanner: movie.imgBanner,
-                year: movie.year,
-                director: movie.director,
-                duration: movie.duration,
-                seen: !!movie.seen,
-                rating: movie.rating,
-                trailer: movie.trailer,
-                path: movie.path,
-                genre: movie.genres ? movie.genres.split(', ') : [],
-                actors: movie.actors ? movie.actors.split(', ') : []
-            }));
-
-            res.status(200).json(formattedResults);
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    if (!title) {
+        return res.status(400).json({ message: 'El nombre de la película es requerido' });
     }
-};
 
-
-const getMovieById = async (req, res) => {
     try {
-        const { id } = req.params;
+        const [rows] = await db.query('SELECT path FROM movies WHERE title = ?', [title]);
 
-        const query = `
-            SELECT 
-                m.id, 
-                m.title, 
-                m.subtitle,
-                m.description,
-                m.imgBanner,
-                m.year, 
-                m.director, 
-                m.duration, 
-                m.seen,
-                m.rating,
-                m.trailer,
-                m.path,
-                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
-                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
-            FROM movies m
-            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
-            LEFT JOIN genres_v2 g ON mg.genre_id = g.id
-            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
-            LEFT JOIN actors a ON ma.actor_id = a.id
-            WHERE m.id = ?
-            GROUP BY m.id;
-        `;
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Película no encontrada en la base de datos' });
+        }
 
-        db.query(query, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al obtener la película' });
-            }
-            if (results.length === 0) {
-                return res.status(404).json({ message: 'Película no encontrada' });
-            }
+        const moviePath = rows[0].path;
 
-            const movie = results[0];
-            const fileExists = fs.existsSync(movie.path);
+        console.log('moviePath >>>', moviePath);
+        if (!fs.existsSync(moviePath)) {
+            return res.status(404).send('El archivo de la película no existe en el sistema.');
+        }
 
-            const formattedMovie = {
-                id: movie.id,
-                title: movie.title,
-                subtitle: movie.subtitle,
-                description: movie.description,
-                imgBanner: movie.imgBanner,
-                year: movie.year,
-                director: movie.director,
-                duration: movie.duration,
-                seen: !!movie.seen,
-                rating: movie.rating,
-                trailer: movie.trailer,
-                path: movie.path,
-                fileExists: fileExists,
-                genre: movie.genres ? movie.genres.split(', ') : [],
-                actors: movie.actors ? movie.actors.split(', ') : []
+        const stat = fs.statSync(moviePath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+            const chunkSize = end - start + 1;
+            const file = fs.createReadStream(moviePath, { start, end });
+            const head = {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': 'video/mp4',
             };
 
-            res.status(200).json(formattedMovie);
-        });
+            res.writeHead(206, head);
+            file.pipe(res);
+        } else {
+            const head = {
+                'Content-Length': fileSize,
+                'Content-Type': 'video/mp4',
+            };
+
+            res.writeHead(200, head);
+            fs.createReadStream(moviePath).pipe(res);
+        }
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error >>>', error);
+        res.status(500).json({ message: 'Error al hacer streaming de la película' });
     }
 };
 
-const createMovie = async (req, res) => {
-    try {
-        const { title, subtitle, description, imgBanner, year, director, duration, rating, trailer, genres, actors } = req.body;
-
-        if (!title) {
-            return res.status(400).json({ message: 'El título es requerido' });
-        }
-
-        try {
-            // Insertar en la tabla de movies
-            const [result] = await db.promise().query(
-                'INSERT INTO movies (title, subtitle, description, imgBanner, year, director, duration, rating, trailer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [title, subtitle, description, imgBanner, year, director, duration, rating, trailer]
-            );
-
-            const movieId = result.insertId;
-
-            // Insertar géneros
-            if (genres && genres.length > 0) {
-                const genreNames = genres.split(',');
-                for (const genre of genreNames) {
-                    await db.promise().query(
-                        'INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, (SELECT id FROM genres_v2 WHERE name = ? LIMIT 1))',
-                        [movieId, genre.trim()]
-                    );
-                }
-            }
-
-            // Insertar actores
-            if (actors && actors.length > 0) {
-                const actorNames = actors.split(',');
-                for (const actor of actorNames) {
-                    // Verificar si el actor existe
-                    const [actorResult] = await db.promise().query(
-                        'SELECT id FROM actors WHERE name = ? LIMIT 1',
-                        [actor.trim()]
-                    );
-
-                    if (actorResult.length > 0) {
-                        // Si el actor existe, insertarlo en la tabla movie_actors
-                        await db.promise().query(
-                            'INSERT INTO movie_actors (movie_id, actor_id) VALUES (?, ?)',
-                            [movieId, actorResult[0].id]
-                        );
-                    } else {
-                        // Si el actor no existe, agregarlo primero a la tabla de actores
-                        const [newActorResult] = await db.promise().query(
-                            'INSERT INTO actors (name) VALUES (?)',
-                            [actor.trim()]
-                        );
-                        // Luego insertar el actor en movie_actors
-                        await db.promise().query(
-                            'INSERT INTO movie_actors (movie_id, actor_id) VALUES (?, ?)',
-                            [movieId, newActorResult.insertId]
-                        );
-                    }
-                }
-            }
-
-            res.status(201).json({ message: 'Película creada con éxito', movieId });
-
-        } catch (dbError) {
-            res.status(500).json({ error: 'Error al crear la película en la base de datos', details: dbError.message });
-        }
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-const updateMovie = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { title, subtitle, description, imgBanner, year, director, duration, seen, rating, trailer, genres, actors } = req.body;
-
-        // Verificar si la película existe
-        const [movieExists] = await db.promise().query('SELECT id FROM movies WHERE id = ?', [id]);
-        if (movieExists.length === 0) {
-            return res.status(404).json({ message: 'Película no encontrada' });
-        }
-
-        // Construir la consulta de actualización dinámica
-        let updateQuery = 'UPDATE movies SET ';
-        let updateValues = [];
-
-        if (title) { updateQuery += 'title = ?, '; updateValues.push(title); }
-        if (subtitle) { updateQuery += 'subtitle = ?, '; updateValues.push(subtitle); }
-        if (description) { updateQuery += 'description = ?, '; updateValues.push(description); }
-        if (imgBanner) { updateQuery += 'imgBanner = ?, '; updateValues.push(imgBanner); }
-        if (year) { updateQuery += 'year = ?, '; updateValues.push(year); }
-        if (director) { updateQuery += 'director = ?, '; updateValues.push(director); }
-        if (duration) { updateQuery += 'duration = ?, '; updateValues.push(duration); }
-        if (seen !== undefined) { updateQuery += 'seen = ?, '; updateValues.push(seen); }
-        if (rating) { updateQuery += 'rating = ?, '; updateValues.push(rating); }
-        if (trailer) { updateQuery += 'trailer = ?, '; updateValues.push(trailer); }
-
-        if (updateValues.length > 0) {
-            updateQuery = updateQuery.slice(0, -2) + ' WHERE id = ?';
-            updateValues.push(id);
-            await db.promise().query(updateQuery, updateValues);
-        }
-
-        // Actualizar géneros
-        if (genres) {
-            await db.promise().query('DELETE FROM movie_genres WHERE movie_id = ?', [id]);
-            const genreList = genres.split(',').map(g => g.trim());
-            for (const genre of genreList) {
-                await db.promise().query(
-                    'INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, (SELECT id FROM genres_v2 WHERE name = ? LIMIT 1))',
-                    [id, genre]
-                );
-            }
-        }
-
-        // Actualizar actores
-        if (actors) {
-            await db.promise().query('DELETE FROM movie_actors WHERE movie_id = ?', [id]);
-            const actorList = actors.split(',').map(a => a.trim());
-            for (const actor of actorList) {
-                await db.promise().query(
-                    'INSERT INTO movie_actors (movie_id, actor_id) VALUES (?, (SELECT id FROM actors WHERE name = ? LIMIT 1))',
-                    [id, actor]
-                );
-            }
-        }
-
-        res.status(200).json({ message: 'Película actualizada con éxito' });
-
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-
-const deleteMovie = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        db.query('DELETE FROM movies WHERE id = ?', [id], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error al eliminar la película' });
-            }
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: 'Película no encontrada' });
-            }
-            res.status(200).json({ message: 'Película eliminada con éxito' });
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-module.exports = { getAllMovies, getMovieById, createMovie, updateMovie, deleteMovie };
+module.exports = { getAllMovies, getMovieById, streamMovieByTitle, createMovie, updateMovie, deleteMovie };

@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { getAllPhotos, getPhotoById, getImage, createPhoto, updatePhoto, deletePhoto } = require('../controllers/photosController');
 
-router.get('/photos', getAllPhotos);
-router.get('/photos/:id', getPhotoById);
-router.get('/images/:name', getImage);
-router.post('/photos', createPhoto);
-router.put('/photos/:id', updatePhoto);
-router.delete('/photos/:id', deletePhoto);
+router.get('/', getAllPhotos);
+router.get('/:id', getPhotoById);
+router.get('/see/:name', getImage);
+router.post('/', createPhoto);
+router.put('/:id', updatePhoto);
+router.delete('/:id', deletePhoto);
 
 module.exports = router;

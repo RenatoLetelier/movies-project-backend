@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 //const ffmpeg = require('fluent-ffmpeg');
 require('dotenv').config();
@@ -21,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/movies', moviesRoutes);
-app.use('/api', photosRoutes);
+app.use('/api/photos', photosRoutes);
 
 // Middleware para verificar token
 function verificarToken(req, res, next) {

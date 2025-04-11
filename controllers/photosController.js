@@ -1,4 +1,4 @@
-const connectDB = require('../models/db');
+const connectDB = require('../models/Photos_db');
 const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
