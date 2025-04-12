@@ -9,7 +9,6 @@ const connectDB = async () => {
       password: process.env.DB_PASSWORD,
       database: process.env.DB_MOVIES_NAME
     });
-    console.log('Conexión exitosa a la base de datos de películas');
     return connection;
   } catch (err) {
     console.error('Error de conexión:', err);

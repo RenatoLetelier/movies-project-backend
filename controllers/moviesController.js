@@ -52,7 +52,6 @@ const getAllMovies = async (req, res) => {
         res.status(200).json(formattedResults);
 
     } catch (error) {
-        console.error('Error >>> ', error);
         res.status(500).json({ message: 'Error al obtener las películas' });
     }
 };
@@ -117,7 +116,6 @@ const getMovieById = async (req, res) => {
         res.status(200).json(formattedMovie);
 
     } catch (error) {
-        console.error('Error >>> ', error);
         res.status(500).json({ message: 'Error al obtener la película' });
     }
 };
@@ -316,15 +314,18 @@ function streamMovie(moviePath, res, req) {
 
 const streamMovieByTitle = async (req, res) => {
     const db = await connectDB();
-    const { title } = req.params.name;
-    console.log('title >>>', title);
+    const { title, subtitle } = req.query;
 
-    if (!title) {
-        return res.status(400).json({ message: 'El nombre de la película es requerido' });
+    
+    if (!title || !subtitle) {
+        return res.status(400).json({ message: 'Los parámetros title y subtitle son requeridos' });
     }
-
+    
     try {
-        const [rows] = await db.query('SELECT path FROM movies WHERE title = ?', [title]);
+        const [rows] = await db.query(
+            'SELECT path FROM movies WHERE title = ? AND subtitle = ?',
+            [title, subtitle]
+        );
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Película no encontrada en la base de datos' });
@@ -332,7 +333,6 @@ const streamMovieByTitle = async (req, res) => {
 
         const moviePath = rows[0].path;
 
-        console.log('moviePath >>>', moviePath);
         if (!fs.existsSync(moviePath)) {
             return res.status(404).send('El archivo de la película no existe en el sistema.');
         }
@@ -368,7 +368,6 @@ const streamMovieByTitle = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Error >>>', error);
         res.status(500).json({ message: 'Error al hacer streaming de la película' });
     }
 };
