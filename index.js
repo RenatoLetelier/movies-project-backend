@@ -12,11 +12,14 @@ const photosRoutes = require('./routes/photosRoutes');
 const app = express();
 
 const MOVIES_DIR = process.env.MOVIES_DIR;
-const PORT = process.env.PORT;
+const HOST = process.env.SERVER_HOST;
+const PORT = process.env.SERVER_PORT;
 const JWT_SECRET = process.env.JWT_SECRET;
 const DB_HOST = process.env.DB_HOST;
 
-app.use(cors());
+
+app.use(cors({ origin: '*' }));
+//app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/movies', moviesRoutes);
@@ -47,5 +50,5 @@ app.get('/profile', verificarToken, (req, res) => {
 
 // Iniciar el servidor
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Servidor funcionando en http://${DB_HOST}:${PORT}`);
+    console.log(`✅ Servidor funcionando en http://${HOST}:${PORT}`);
 });
