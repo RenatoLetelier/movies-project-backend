@@ -1,136 +1,139 @@
-const connectDB = require('../models/Movies_db');
+const db = require('../models/Movies_db');
 const fs = require('fs');
-const { console } = require('inspector');
-const path = require('path');
 
 const getAllMovies = async (req, res) => {
-    const db = await connectDB();
-    try {
-        const query = `
-            SELECT 
-                m.id, 
-                m.title, 
-                m.subtitle,
-                m.description,
-                m.imgBanner,
-                m.year, 
-                m.director, 
-                m.duration, 
-                m.seen,
-                m.rating,
-                m.trailer,
-                m.path,
-                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
-                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
-            FROM movies m
-            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
-            LEFT JOIN genres g ON mg.genre_id = g.id
-            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
-            LEFT JOIN actors a ON ma.actor_id = a.id
-            GROUP BY m.id;
-        `;
+  try {
+    const query = `
+      SELECT 
+        m.id, 
+        m.title, 
+        m.subtitle,
+        m.description,
+        m.imgBanner,
+        m.year, 
+        m.director, 
+        m.duration, 
+        m.seen,
+        m.rating,
+        m.trailer,
+        m.path,
+        GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
+        GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
+      FROM movies m
+      LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+      LEFT JOIN genres g ON mg.genre_id = g.id
+      LEFT JOIN movie_actors ma ON m.id = ma.movie_id
+      LEFT JOIN actors a ON ma.actor_id = a.id
+      GROUP BY m.id;
+    `;
 
-        const [results] = await db.query(query);
+    const [results] = await db.query(query);
 
-        const formattedResults = results.map(movie => ({
-            id: movie.id,
-            title: movie.title,
-            subtitle: movie.subtitle,
-            description: movie.description,
-            imgBanner: movie.imgBanner,
-            year: movie.year,
-            director: movie.director,
-            duration: movie.duration,
-            seen: !!movie.seen,
-            rating: movie.rating,
-            trailer: movie.trailer,
-            path: movie.path,
-            genre: movie.genres ? movie.genres.split(', ') : [],
-            actors: movie.actors ? movie.actors.split(', ') : []
-        }));
+    const formattedResults = results.map(movie => ({
+      id: movie.id,
+      title: movie.title,
+      subtitle: movie.subtitle,
+      description: movie.description,
+      imgBanner: movie.imgBanner,
+      year: movie.year,
+      director: movie.director,
+      duration: movie.duration,
+      seen: !!movie.seen,
+      rating: movie.rating,
+      trailer: movie.trailer,
+      path: movie.path,
+      genre: movie.genres ? movie.genres.split(', ') : [],
+      actors: movie.actors ? movie.actors.split(', ') : []
+    }));
 
-        res.status(200).json(formattedResults);
+    res.status(200).json(formattedResults);
 
-    } catch (error) {
-        res.status(500).json({ message: 'Error al obtener las películas' });
-    }
+  } catch (error) {
+    console.error("❌ Error en getAllMovies:", error);
+    res.status(500).json({ message: 'Error al obtener las películas' });
+  }
 };
 
 const getMovieById = async (req, res) => {
-    const db = await connectDB();
     try {
-        const { id } = req.params;
-
-        const query = `
-            SELECT 
-                m.id, 
-                m.title, 
-                m.subtitle,
-                m.description,
-                m.imgBanner,
-                m.year, 
-                m.director, 
-                m.duration, 
-                m.seen,
-                m.rating,
-                m.trailer,
-                m.path,
-                GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
-                GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
-            FROM movies m
-            LEFT JOIN movie_genres mg ON m.id = mg.movie_id
-            LEFT JOIN genres g ON mg.genre_id = g.id
-            LEFT JOIN movie_actors ma ON m.id = ma.movie_id
-            LEFT JOIN actors a ON ma.actor_id = a.id
-            WHERE m.id = ?
-            GROUP BY m.id;
-        `;
-
-        const [results] = await db.query(query, [id]);
-
-        if (results.length === 0) {
-            return res.status(404).json({ message: 'Película no encontrada' });
-        }
-
-        const movie = results[0];
-        const fileExists = fs.existsSync(movie.path);
-
-        const formattedMovie = {
-            id: movie.id,
-            title: movie.title,
-            subtitle: movie.subtitle,
-            description: movie.description,
-            imgBanner: movie.imgBanner,
-            year: movie.year,
-            director: movie.director,
-            duration: movie.duration,
-            seen: !!movie.seen,
-            rating: movie.rating,
-            trailer: movie.trailer,
-            path: movie.path,
-            fileExists,
-            genre: movie.genres ? movie.genres.split(', ') : [],
-            actors: movie.actors ? movie.actors.split(', ') : []
-        };
-
-        res.status(200).json(formattedMovie);
-
+      const { id } = req.params;
+  
+      const query = `
+        SELECT 
+          m.id, 
+          m.title, 
+          m.subtitle,
+          m.description,
+          m.imgBanner,
+          m.year, 
+          m.director, 
+          m.duration, 
+          m.seen,
+          m.rating,
+          m.trailer,
+          m.path,
+          GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
+          GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
+        FROM movies m
+        LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+        LEFT JOIN genres g ON mg.genre_id = g.id
+        LEFT JOIN movie_actors ma ON m.id = ma.movie_id
+        LEFT JOIN actors a ON ma.actor_id = a.id
+        WHERE m.id = ?
+        GROUP BY m.id;
+      `;
+  
+      const [results] = await db.query(query, [id]);
+  
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Película no encontrada' });
+      }
+  
+      const movie = results[0];
+      const fileExists = fs.existsSync(movie.path);
+  
+      const formattedMovie = {
+        id: movie.id,
+        title: movie.title,
+        subtitle: movie.subtitle,
+        description: movie.description,
+        imgBanner: movie.imgBanner,
+        year: movie.year,
+        director: movie.director,
+        duration: movie.duration,
+        seen: !!movie.seen,
+        rating: movie.rating,
+        trailer: movie.trailer,
+        path: movie.path,
+        fileExists,
+        genre: movie.genres ? movie.genres.split(', ') : [],
+        actors: movie.actors ? movie.actors.split(', ') : []
+      };
+  
+      res.status(200).json(formattedMovie);
+  
     } catch (error) {
-        res.status(500).json({ message: 'Error al obtener la película' });
+      console.error("❌ Error en getMovieById:", error);
+      res.status(500).json({ message: 'Error al obtener la película' });
     }
-};
+  };
 
 const createMovie = async (req, res) => {
-    const db = await connectDB();
     try {
         const {
             title, subtitle, description, imgBanner, year,
             director, duration, seen, rating, trailer, path,
             actors, genres
-        } = req.body;
+        } = req.body; 
 
         if (!title || !path) {
             return res.status(400).json({ message: 'Título y ruta del archivo son requeridos' });
+        }
+
+        // Verificar si ya existe una película con el mismo título
+        const [existing] = await db.query('SELECT id FROM movies WHERE title = ?', [title]);
+        if (existing.length > 0) {
+            return res.status(409).json({ message: 'Ya existe una película con este título' });
         }
 
         // Insertar en movies
@@ -172,7 +175,6 @@ const createMovie = async (req, res) => {
 };
 
 const updateMovie = async (req, res) => {
-    const db = await connectDB();
     const movieId = req.params.id;
     const {
       title,
@@ -250,7 +252,6 @@ const updateMovie = async (req, res) => {
   };
 
   const deleteMovie = async (req, res) => {
-    const db = await connectDB();
     try {
         const { id } = req.params;
 
@@ -276,10 +277,8 @@ const updateMovie = async (req, res) => {
 };
 
 const streamMovieByTitle = async (req, res) => {
-    const db = await connectDB();
     const { id } = req.params;
 
-    
     if (!id) {
         return res.status(400).json({ message: 'El id es requerido' });
     }

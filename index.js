@@ -6,6 +6,7 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const moviesRoutes = require('./routes/moviesRoutes');
 const photosRoutes = require('./routes/photosRoutes');
 
@@ -19,8 +20,8 @@ const DB_HOST = process.env.DB_HOST;
 
 
 app.use(cors({ origin: '*' }));
-//app.use(cors());
 app.use(express.json());
+app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/movies', moviesRoutes);
 app.use('/api/photos', photosRoutes);
