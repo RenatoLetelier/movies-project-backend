@@ -1,9 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-//const ffmpeg = require('fluent-ffmpeg');
-require('dotenv').config();
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -12,12 +10,9 @@ const photosRoutes = require('./routes/photosRoutes');
 
 const app = express();
 
-const MOVIES_DIR = process.env.MOVIES_DIR;
 const HOST = process.env.SERVER_HOST;
 const PORT = process.env.SERVER_PORT;
 const JWT_SECRET = process.env.JWT_SECRET;
-const DB_HOST = process.env.DB_HOST;
-
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
