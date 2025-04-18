@@ -60,8 +60,15 @@ const login = async (req, res) => {
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
+
+      // Nuevo usuario sin contraseña
+      const newUser = { 
+        id: user.id,
+        username: user.username,
+        email: user.email,
+       };
   
-      res.status(200).json({ message: 'Inicio de sesión exitoso', token });
+      res.status(200).json({ message: 'Inicio de sesión exitoso', token, newUser });
     } catch (error) {
       console.error('❌ Error en login:', error);
       res.status(500).json({ error: 'Error en el login' });
