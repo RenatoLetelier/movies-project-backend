@@ -78,11 +78,12 @@ exports.streamPhotoByFileName = async (req, res) => {
   
   try {
     const photoPath = await photoService.getPhotoPathByName(fileName);
-    const imgRute = path.join(__dirname, '../uploads', photoPath);
-
+    
     if (!photoPath) {
-          return res.status(404).json({ message: 'Foto no encontrada en la base de datos' });
-        }
+      return res.status(404).json({ message: 'Foto no encontrada en la base de datos' });
+    }
+
+    const imgRute = path.join(__dirname, '../uploads', photoPath);
     
     if (!fs.existsSync(imgRute)) {
       return res.status(404).send('El archivo de la foto no existe en el sistema.');
