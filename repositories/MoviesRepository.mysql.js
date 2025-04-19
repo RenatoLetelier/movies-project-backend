@@ -5,28 +5,7 @@ const fs = require('fs');
 class MovieRepositoryMySQL extends MovieRepository {
   //GET ALL MOVIES
   async getAllMovies() {
-    const query = `
-      SELECT 
-        m.id, 
-        m.title, 
-        m.subtitle,
-        m.description,
-        m.imgBanner,
-        m.year, 
-        m.director, 
-        m.duration,
-        m.rating,
-        m.trailer,
-        m.path,
-        GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') AS genres,
-        GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') AS actors
-      FROM movies m
-      LEFT JOIN movie_genres mg ON m.id = mg.movie_id
-      LEFT JOIN genres g ON mg.genre_id = g.id
-      LEFT JOIN movie_actors ma ON m.id = ma.movie_id
-      LEFT JOIN actors a ON ma.actor_id = a.id
-      GROUP BY m.id;
-    `;
+    const query = 'SELECT * FROM movies'
     const [rows] = await db.query(query);
     return rows;
   }
@@ -90,6 +69,7 @@ class MovieRepositoryMySQL extends MovieRepository {
     } = data;
 
     const [existing] = await db.query('SELECT id FROM movies WHERE title = ?', [data.title]);
+    
     if (existing.length > 0) {
       throw new Error('Ya existe una película con este título');
     }

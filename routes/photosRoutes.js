@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getAllPhotos, getPhotoById, getImage, createPhoto, updatePhoto, deletePhoto } = require('../controllers/photosController');
+const photosController = require('../controllers/photosController');
 
-router.get('/', getAllPhotos);
-router.get('/see/:name', getImage);
-router.get('/:id', getPhotoById);
-router.post('/', createPhoto);
-router.put('/:id', updatePhoto);
-router.delete('/:id', deletePhoto);
+router.get('/', photosController.getAllPhotos);
+router.get('/:id', photosController.getPhotoById);
+router.post('/', photosController.createPhoto);
+router.put('/:id', photosController.updatePhoto);
+router.delete('/:id', photosController.deletePhoto);
+
+router.get('/see/:name', photosController.streamPhotoByFileName);
 
 module.exports = router;

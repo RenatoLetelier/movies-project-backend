@@ -1,14 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const config = require('./config');
-
-// const fs = require('fs');
-// const ffmpeg = require('fluent-ffmpeg');
-// const path = require('path');
-
-// const router = express.Router();
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -24,27 +17,40 @@ app.use('/api/auth', authRoutes);
 app.use('/api/movies', moviesRoutes);
 app.use('/api/photos', photosRoutes);
 
-// Middleware para verificar token
-function verificarToken(req, res, next) {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: 'Acceso denegado' });
-  
-    jwt.verify(token.split(' ')[1], config.JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).json({ error: 'Token inválido' });
-  
-      req.user = decoded;
-      next();
-    });
-}
-
-// Ruta principal
+// Home route
 app.get('/', (req, res) => {
     res.send('Home server working correctly!');
 });
 
+// Error route
 app.get('*', (req, res) => {
     res.send('Error page, please come back /home.');
 });
+
+// Start server
+app.listen(config.PORT, '0.0.0.0', () => {
+    console.log(`✅ Server running on http://${config.HOST}:${config.PORT}`);
+});
+
+// const jwt = require('jsonwebtoken');
+// const fs = require('fs');
+// const ffmpeg = require('fluent-ffmpeg');
+// const path = require('path');
+
+// const router = express.Router();
+
+// Middleware para verificar token
+// function verificarToken(req, res, next) {
+//     const token = req.headers['authorization'];
+//     if (!token) return res.status(403).json({ error: 'Acceso denegado' });
+  
+//     jwt.verify(token.split(' ')[1], config.JWT_SECRET, (err, decoded) => {
+//       if (err) return res.status(401).json({ error: 'Token inválido' });
+  
+//       req.user = decoded;
+//       next();
+//     });
+// }
 
 // 📌 Ruta protegida (requiere token)
 // app.get('/profile', verificarToken, (req, res) => {
@@ -95,8 +101,3 @@ app.get('*', (req, res) => {
 //     })
 //     .save(muxedPath);
 // });
-
-// Iniciar el servidor
-app.listen(config.PORT, '0.0.0.0', () => {
-    console.log(`✅ Servidor funcionando en http://${config.HOST}:${config.PORT}`);
-});
