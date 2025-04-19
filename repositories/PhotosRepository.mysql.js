@@ -1,11 +1,11 @@
-const db = require('../models/Photos_db');
-const PhotoRepository = require('./PhotosRepository.interface');
-const fs = require('fs');
+const db = require("../models/Photos_db");
+const PhotoRepository = require("./PhotosRepository.interface");
+const fs = require("fs");
 
 class PhotoRepositoryMySQL extends PhotoRepository {
   //GET ALL PHOTOS
   async getAllPhotos() {
-    const query = 'SELECT * FROM photos'
+    const query = "SELECT * FROM photos";
     const [rows] = await db.query(query);
     return rows;
   }
@@ -49,74 +49,128 @@ class PhotoRepositoryMySQL extends PhotoRepository {
     const fileExists = fs.existsSync(photo.path);
 
     return {
-        id: photo.id,
-        name: photo.name,
-        description: photo.description,
-        uploadBy: photo.uploadBy,
-        isFavorite: !!photo.isFavorite,
-        isPrivate: !!photo.isPrivate,
-        orientation: photo.orientation,
-        path: photo.path,
-        fileExists,
-        metadata: {
-            location: photo.location,
-            dimensions: photo.dimensions,
-            size: photo.size,
-            photoDate: photo.photoDate,
-            photoTime: photo.photoTime
-        },
-        tags: photo.tags ? photo.tags.split(', ') : [],
-        albums: photo.albums ? photo.albums.split(', ') : [],
-        people: photo.people ? photo.people.split(', ') : []
+      id: photo.id,
+      name: photo.name,
+      description: photo.description,
+      uploadBy: photo.uploadBy,
+      isFavorite: !!photo.isFavorite,
+      isPrivate: !!photo.isPrivate,
+      orientation: photo.orientation,
+      path: photo.path,
+      fileExists,
+      metadata: {
+        location: photo.location,
+        dimensions: photo.dimensions,
+        size: photo.size,
+        photoDate: photo.photoDate,
+        photoTime: photo.photoTime,
+      },
+      tags: photo.tags ? photo.tags.split(", ") : [],
+      albums: photo.albums ? photo.albums.split(", ") : [],
+      people: photo.people ? photo.people.split(", ") : [],
     };
   }
 
   //CREATE PHOTO
   async createPhoto(data) {
-    const { name, description, uploadBy, isFavorite, isPrivate, orientation, path, tags, albums, metadata } = data;
+    const {
+      name,
+      description,
+      uploadBy,
+      isFavorite,
+      isPrivate,
+      orientation,
+      path,
+      tags,
+      albums,
+      metadata,
+    } = data;
 
-    const [existing] = await db.query('SELECT id FROM photos WHERE name = ?', [data.name]);
-    
+    const [existing] = await db.query("SELECT id FROM photos WHERE name = ?", [
+      data.name,
+    ]);
+
     if (existing.length > 0) {
-      throw new Error('Ya existe una foto con este nombre');
+      throw new Error("Ya existe una foto con este nombre");
     }
-  
+
     const [photoResult] = await db.query(
       `INSERT INTO photos (name, description, uploadBy, isFavorite, isPrivate, orientation, path) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [name, description, uploadBy, isFavorite, isPrivate, orientation, path]
     );
-  
+
     const photoId = photoResult.insertId;
 
     await db.query(
-        'INSERT INTO metadata (photo_id, location, dimensions, size, photoDate, photoTime) VALUES (?, ?, ?, ?, ?, ?)',
-        [photoId, metadata.location, metadata.dimensions, metadata.size, metadata.photoDate, metadata.photoTime]
+      "INSERT INTO metadata (photo_id, location, dimensions, size, photoDate, photoTime) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        photoId,
+        metadata.location,
+        metadata.dimensions,
+        metadata.size,
+        metadata.photoDate,
+        metadata.photoTime,
+      ]
     );
 
     if (tags && tags.length > 0) {
-        await Promise.all(tags.map(async (tag) => {
-            await db.query('INSERT INTO photo_tags (photo_id, tag_id) SELECT ?, id FROM tags WHERE name = ?', [photoId, tag]);
-        }));
+      await Promise.all(
+        tags.map(async (tag) => {
+          await db.query(
+            "INSERT INTO photo_tags (photo_id, tag_id) SELECT ?, id FROM tags WHERE name = ?",
+            [photoId, tag]
+          );
+        })
+      );
     }
 
     if (albums && albums.length > 0) {
-        await Promise.all(albums.map(async (album) => {
-            await db.query('INSERT INTO photo_albums (photo_id, album_id) SELECT ?, id FROM albums WHERE name = ?', [photoId, album]);
-        }));
+      await Promise.all(
+        albums.map(async (album) => {
+          await db.query(
+            "INSERT INTO photo_albums (photo_id, album_id) SELECT ?, id FROM albums WHERE name = ?",
+            [photoId, album]
+          );
+        })
+      );
     }
 
     if (metadata.people && metadata.people.length > 0) {
-        await Promise.all(metadata.people.map(async (person) => {
-            await db.query('INSERT INTO photo_people (photo_id, person_id) SELECT ?, id FROM people WHERE name = ?', [photoId, person]);
-        }));
+      await Promise.all(
+        metadata.people.map(async (person) => {
+          await db.query(
+            "INSERT INTO photo_people (photo_id, person_id) SELECT ?, id FROM people WHERE name = ?",
+            [photoId, person]
+          );
+        })
+      );
     }
-  
-    return { photoId, message: 'Foto creada con éxito' };
+
+    return { photoId, message: "Foto creada con éxito" };
   }
 
   //UPDATE MOVIE
   async updatePhoto(photoId, data) {
     const {
+      name,
+      description,
+      uploadBy,
+      isFavorite,
+      isPrivate,
+      orientation,
+      path,
+      tags,
+      albums,
+      metadata,
+    } = data;
+
+    await db.query(
+      `
+        UPDATE photos SET 
+            name=?, description=?, uploadBy=?, 
+            isFavorite=?, isPrivate=?, orientation=?, path=?
+        WHERE id=?`,
+      [
         name,
         description,
         uploadBy,
@@ -124,97 +178,120 @@ class PhotoRepositoryMySQL extends PhotoRepository {
         isPrivate,
         orientation,
         path,
-        tags,
-        albums,
-        metadata
-      } = data;
-  
-    await db.query(`
-        UPDATE photos SET 
-            name=?, description=?, uploadBy=?, 
-            isFavorite=?, isPrivate=?, orientation=?, path=?
-        WHERE id=?`,
-        [name, description, uploadBy, isFavorite, isPrivate, orientation, path, photoId]
+        photoId,
+      ]
     );
 
-    await db.query(`
+    await db.query(
+      `
         UPDATE metadata SET 
           location=?, dimensions=?, size=?, photoDate=?, photoTime=?
         WHERE photo_id=?`,
-        [metadata.location, metadata.dimensions, metadata.size, metadata.photoDate, metadata.photoTime, photoId]
+      [
+        metadata.location,
+        metadata.dimensions,
+        metadata.size,
+        metadata.photoDate,
+        metadata.photoTime,
+        photoId,
+      ]
     );
 
     await Promise.all([
-        db.query('DELETE FROM photo_tags WHERE photo_id=?', [photoId]),
-        db.query('DELETE FROM photo_albums WHERE photo_id=?', [photoId]),
-        db.query('DELETE FROM photo_people WHERE photo_id=?', [photoId]),
+      db.query("DELETE FROM photo_tags WHERE photo_id=?", [photoId]),
+      db.query("DELETE FROM photo_albums WHERE photo_id=?", [photoId]),
+      db.query("DELETE FROM photo_people WHERE photo_id=?", [photoId]),
     ]);
 
     for (const tagName of tags) {
-        const [tagRows] = await db.query('SELECT id FROM tags WHERE name=?', [tagName]);
-        let tagId;
-  
-        if (tagRows.length > 0) {
-          tagId = tagRows[0].id;
-        } else {
-          const [result] = await db.query('INSERT INTO tags (name) VALUES (?)', [tagName]);
-          tagId = result.insertId;
-        }
-  
-        await db.query('INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?)', [photoId, tagId]);
+      const [tagRows] = await db.query("SELECT id FROM tags WHERE name=?", [
+        tagName,
+      ]);
+      let tagId;
+
+      if (tagRows.length > 0) {
+        tagId = tagRows[0].id;
+      } else {
+        const [result] = await db.query("INSERT INTO tags (name) VALUES (?)", [
+          tagName,
+        ]);
+        tagId = result.insertId;
+      }
+
+      await db.query(
+        "INSERT INTO photo_tags (photo_id, tag_id) VALUES (?, ?)",
+        [photoId, tagId]
+      );
     }
 
     for (const albumName of albums) {
-        const [albumRows] = await db.query('SELECT id FROM albums WHERE name=?', [albumName]);
-        let albumId;
-  
-        if (albumRows.length > 0) {
-          albumId = albumRows[0].id;
-        } else {
-          const [result] = await db.query('INSERT INTO albums (name) VALUES (?)', [albumName]);
-          albumId = result.insertId;
-        }
-  
-        await db.query('INSERT INTO photo_albums (photo_id, album_id) VALUES (?, ?)', [photoId, albumId]);
+      const [albumRows] = await db.query("SELECT id FROM albums WHERE name=?", [
+        albumName,
+      ]);
+      let albumId;
+
+      if (albumRows.length > 0) {
+        albumId = albumRows[0].id;
+      } else {
+        const [result] = await db.query(
+          "INSERT INTO albums (name) VALUES (?)",
+          [albumName]
+        );
+        albumId = result.insertId;
+      }
+
+      await db.query(
+        "INSERT INTO photo_albums (photo_id, album_id) VALUES (?, ?)",
+        [photoId, albumId]
+      );
     }
-  
+
     for (const personName of metadata.people) {
-        const [peopleRows] = await db.query('SELECT id FROM people WHERE name=?', [personName]);
-        let personId;
-  
-        if (peopleRows.length > 0) {
-          personId = peopleRows[0].id;
-        } else {
-          const [result] = await db.query('INSERT INTO people (name) VALUES (?)', [personName]);
-          personId = result.insertId;
-        }
-  
-        await db.query('INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?)', [photoId, personId]);
+      const [peopleRows] = await db.query(
+        "SELECT id FROM people WHERE name=?",
+        [personName]
+      );
+      let personId;
+
+      if (peopleRows.length > 0) {
+        personId = peopleRows[0].id;
+      } else {
+        const [result] = await db.query(
+          "INSERT INTO people (name) VALUES (?)",
+          [personName]
+        );
+        personId = result.insertId;
+      }
+
+      await db.query(
+        "INSERT INTO photo_people (photo_id, person_id) VALUES (?, ?)",
+        [photoId, personId]
+      );
     }
-  
-    return { message: 'Foto actualizada exitosamente.' };
+
+    return { message: "Foto actualizada exitosamente." };
   }
 
   //DELETE PHOTO
   async deletePhoto(id) {
     await Promise.all([
-        db.query('DELETE FROM photo_tags WHERE photo_id=?', [id]),
-        db.query('DELETE FROM photo_albums WHERE photo_id=?', [id]),
-        db.query('DELETE FROM photo_people WHERE photo_id=?', [id]),
+      db.query("DELETE FROM photo_tags WHERE photo_id=?", [id]),
+      db.query("DELETE FROM photo_albums WHERE photo_id=?", [id]),
+      db.query("DELETE FROM photo_people WHERE photo_id=?", [id]),
     ]);
-  
-    const [result] = await db.query('DELETE FROM photos WHERE id = ?', [id]);
-  
+
+    const [result] = await db.query("DELETE FROM photos WHERE id = ?", [id]);
+
     if (result.affectedRows === 0) {
       return null;
     }
-  
-    return { message: 'Foto eliminada con éxito' };
+
+    return { message: "Foto eliminada con éxito" };
   }
 
   //STREAM PHOTO
-  async getPhotoPathByName(name) {
-    const [rows] = await db.query('SELECT path FROM photos WHERE name = ?', [name]);
+  async getPhotoPathById(id) {
+    const [rows] = await db.query("SELECT path FROM photos WHERE id = ?", [id]);
     return rows.length > 0 ? rows[0].path : null;
   }
 }
