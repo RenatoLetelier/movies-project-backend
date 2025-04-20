@@ -83,6 +83,21 @@ class AuthRepositoryMySQL extends AuthRepository {
       res.status(500).json({ error: "Error en el login" });
     }
   }
+
+  //GET PROFILE
+  async getProfile(id) {
+    try {
+      const [results] = await db.query(
+        "SELECT username, email FROM users WHERE id = ?",
+        [id]
+      );
+
+      return results;
+    } catch (error) {
+      console.error("❌ Error al obtener perfil:", error);
+      res.status(500).json({ error: "Error al obtener perfil" });
+    }
+  }
 }
 
 module.exports = AuthRepositoryMySQL;

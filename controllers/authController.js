@@ -17,3 +17,13 @@ exports.signin = async (req, res) => {
     res.status(500).json({ error: "Error al iniciar sesión" });
   }
 };
+
+exports.getProfile = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const profile = await authService.getProfile(userId);
+    res.status(200).json(profile);
+  } catch (err) {
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+};

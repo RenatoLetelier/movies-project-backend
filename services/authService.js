@@ -11,4 +11,5 @@ if (config.DB_TYPE === "mysql") {
 module.exports = {
   signup: async (data) => await AuthRepository.signup(data),
   signin: async (data) => await AuthRepository.signin(data),
+  getProfile: async (id) => await AuthRepository.getProfile(id),
 };
