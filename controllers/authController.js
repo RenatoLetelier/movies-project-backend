@@ -1,78 +1,19 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('../models/Users_db');
+const authService = require("../services/authService");
 
-const register = async (req, res) => {
-    try {
-      const { username, email, password } = req.body;
-  
-      // Validar campos requeridos
-      if (!username || !password) {
-        return res.status(400).json({ message: 'Username y password son requeridos' });
-      }
-  
-      // Verificar si el usuario ya existe
-      const [existingUsers] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
-      if (existingUsers.length > 0) {
-        return res.status(400).json({ message: 'El usuario ya existe' });
-      }
-  
-      // Hashear la contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
-  
-      // Insertar el nuevo usuario
-      await db.query('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword]);
-  
-      res.status(201).json({ message: 'Usuario creado con éxito' });
-    } catch (error) {
-      console.error('❌ Error al crear usuario:', error);
-      res.status(500).json({ message: 'Error al crear usuario' });
-    }
+exports.signup = async (req, res) => {
+  try {
+    const authSignup = await authService.signup(req.body);
+    res.status(200).json(authSignup);
+  } catch (err) {
+    res.status(500).json({ error: "Error al registrarse" });
+  }
 };
 
-const login = async (req, res) => {
-    try {
-      const { username, password } = req.body;
-  
-      // Validar entrada
-      if (!username || !password) {
-        return res.status(400).json({ error: 'Username y password son requeridos' });
-      }
-  
-      // Buscar usuario
-      const [results] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
-  
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Usuario no encontrado' });
-      }
-  
-      const user = results[0];
-  
-      // Comparar contraseñas
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({ error: 'Contraseña incorrecta' });
-      }
-  
-      // Generar token
-      const token = jwt.sign(
-        { id: user.id, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-
-      // Nuevo usuario sin contraseña
-      const newUser = { 
-        id: user.id,
-        username: user.username,
-        email: user.email,
-       };
-  
-      res.status(200).json({ message: 'Inicio de sesión exitoso', token, newUser });
-    } catch (error) {
-      console.error('❌ Error en login:', error);
-      res.status(500).json({ error: 'Error en el login' });
-    }
-  };
-
-module.exports = {register, login};
+exports.signin = async (req, res) => {
+  try {
+    const authSignin = await authService.signin(req.body);
+    res.status(200).json(authSignin);
+  } catch (err) {
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+};

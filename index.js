@@ -1,35 +1,35 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
-const config = require('./config');
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
+const config = require("./config");
 
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const moviesRoutes = require('./routes/moviesRoutes');
-const photosRoutes = require('./routes/photosRoutes');
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const moviesRoutes = require("./routes/moviesRoutes");
+const photosRoutes = require("./routes/photosRoutes");
 
 const app = express();
 
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: "*" }));
 app.use(express.json());
-app.use('/api/users', userRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/movies', moviesRoutes);
-app.use('/api/photos', photosRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/movies", moviesRoutes);
+app.use("/api/photos", photosRoutes);
 
 // Home route
-app.get('/', (req, res) => {
-    res.send('Home server working correctly!');
+app.get("/", (req, res) => {
+  res.send("Home server working correctly!");
 });
 
 // Error route
-app.get('*', (req, res) => {
-    res.send('Error page, please come back /home.');
+app.get("*", (req, res) => {
+  res.send("Error page, please come back /home.");
 });
 
 // Start server
-app.listen(config.PORT, '0.0.0.0', () => {
-    console.log(`✅ Server running on http://${config.HOST}:${config.PORT}`);
+app.listen(config.PORT, "0.0.0.0", () => {
+  console.log(`✅ Server running on http://${config.HOST}:${config.PORT}`);
 });
 
 // const jwt = require('jsonwebtoken');
@@ -43,10 +43,10 @@ app.listen(config.PORT, '0.0.0.0', () => {
 // function verificarToken(req, res, next) {
 //     const token = req.headers['authorization'];
 //     if (!token) return res.status(403).json({ error: 'Acceso denegado' });
-  
+
 //     jwt.verify(token.split(' ')[1], config.JWT_SECRET, (err, decoded) => {
 //       if (err) return res.status(401).json({ error: 'Token inválido' });
-  
+
 //       req.user = decoded;
 //       next();
 //     });
@@ -61,11 +61,11 @@ app.listen(config.PORT, '0.0.0.0', () => {
 //     const movieId = req.params.id;
 //     const videoFile = "video";
 //     const audioFile = "audio";
-    
+
 //     const videoPath = path.join(__dirname, `./uploads/${videoFile}.mp4`);
 //     const audioPath = path.join(__dirname, `./uploads/${audioFile}${movieId}.mp3`);
 //     const muxedPath = path.join(__dirname, `./uploads/muxed-${movieId}.mp4`);
-  
+
 //     if (!fs.existsSync(videoPath) || !fs.existsSync(audioPath)) {
 //       return res.status(404).send('Video or audio file not found');
 //     }
@@ -74,9 +74,9 @@ app.listen(config.PORT, '0.0.0.0', () => {
 //     if (fs.existsSync(muxedPath)) {
 //         return res.sendFile(muxedPath);
 //     }
-  
+
 //     res.contentType('video/mp4');
-  
+
 //     ffmpeg()
 //     .input(videoPath)
 //     .input(audioPath)
