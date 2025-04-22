@@ -1,5 +1,5 @@
-const mysql = require('mysql2/promise');
-const config = require('../config');
+const mysql = require("mysql2/promise");
+const config = require("../config");
 
 const pool = mysql.createPool({
   host: config.DB_HOST,
@@ -8,7 +8,7 @@ const pool = mysql.createPool({
   database: config.DB_PHOTOS_NAME,
   waitForConnections: true,
   connectionLimit: 50,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 module.exports = pool;

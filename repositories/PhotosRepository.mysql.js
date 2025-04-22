@@ -1,4 +1,4 @@
-const db = require("../models/Photos_db");
+const db = require("../models/Home_db");
 const PhotoRepository = require("./PhotosRepository.interface");
 const fs = require("fs");
 

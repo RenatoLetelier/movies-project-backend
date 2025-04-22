@@ -1,3 +1,4 @@
+const { console } = require("inspector");
 const movieService = require("../services/moviesService");
 const fs = require("fs");
 
