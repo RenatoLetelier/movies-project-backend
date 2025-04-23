@@ -3,8 +3,8 @@ const cors = require("cors");
 require("dotenv").config();
 const config = require("./config");
 
-const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
+const authRoutes = require("./routes/authRoutes");
 const moviesRoutes = require("./routes/moviesRoutes");
 const photosRoutes = require("./routes/photosRoutes");
 

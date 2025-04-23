@@ -12,7 +12,7 @@ class UserRepositoryMySQL extends UserRepository {
 
   //GET ONE USER
   async getUserById(id) {
-    const query = `SELECT id, username, email, createdAt, rol FROM users WHERE id = ?;`;
+    const query = `SELECT id, username, email, createdAt, role FROM users WHERE id = ?;`;
 
     const [results] = await db.query(query, id);
     if (results.length === 0) return null;
@@ -24,7 +24,7 @@ class UserRepositoryMySQL extends UserRepository {
       username: user.username,
       email: user.email,
       createdAt: user.createdAt,
-      rol: user.rol,
+      role: user.rol,
     };
   }
 
