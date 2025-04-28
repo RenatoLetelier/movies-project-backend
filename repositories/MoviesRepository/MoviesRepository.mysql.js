@@ -1,5 +1,5 @@
 const { console } = require("inspector");
-const db = require("../models/Home_db");
+const db = require("../../models/Home_db");
 const MovieRepository = require("./MoviesRepository.interface");
 const fs = require("fs");
 

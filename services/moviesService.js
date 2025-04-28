@@ -1,11 +1,13 @@
-const config = require('../config');
+const config = require("../config");
 
 let MoviesRepository;
 
-if (config.DB_TYPE === 'mysql') {
-  MoviesRepository = new (require('../repositories/MoviesRepository.mysql'))();
-} else if (config.DB_TYPE === 'mongodb') {
-  MoviesRepository = new (require('../repositories/MoviesRepository.mongodb'))();
+if (config.DB_TYPE === "mysql") {
+  MoviesRepository =
+    new (require("../repositories/MoviesRepository/MoviesRepository.mysql"))();
+} else if (config.DB_TYPE === "mongodb") {
+  MoviesRepository =
+    new (require("../repositories/MoviesRepository/MoviesRepository.mongodb"))();
 }
 
 module.exports = {
@@ -14,5 +16,5 @@ module.exports = {
   createMovie: async (data) => await MoviesRepository.createMovie(data),
   updateMovie: async (id, data) => await MoviesRepository.updateMovie(id, data),
   deleteMovie: async (id) => await MoviesRepository.deleteMovie(id),
-  getMoviePathById: async (id) => await MoviesRepository.getMoviePathById(id)
+  getMoviePathById: async (id) => await MoviesRepository.getMoviePathById(id),
 };

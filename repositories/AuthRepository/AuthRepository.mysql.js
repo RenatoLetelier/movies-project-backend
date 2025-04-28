@@ -1,4 +1,4 @@
-const db = require("../models/Home_db");
+const db = require("../../models/Home_db");
 const AuthRepository = require("./AuthRepository.interface");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");

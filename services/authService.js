@@ -3,9 +3,11 @@ const config = require("../config");
 let AuthRepository;
 
 if (config.DB_TYPE === "mysql") {
-  AuthRepository = new (require("../repositories/AuthRepository.mysql"))();
+  AuthRepository =
+    new (require("../repositories/AuthRepository/AuthRepository.mysql"))();
 } else if (config.DB_TYPE === "mongodb") {
-  AuthRepository = new (require("../repositories/AuthRepository.mongodb"))();
+  AuthRepository =
+    new (require("../repositories/AuthRepository/AuthRepository.mongodb"))();
 }
 
 module.exports = {

@@ -7,6 +7,7 @@ const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
 const moviesRoutes = require("./routes/moviesRoutes");
 const photosRoutes = require("./routes/photosRoutes");
+const subtitlesRoutes = require("./routes/subtitlesRoutes");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", moviesRoutes);
 app.use("/api/photos", photosRoutes);
+app.use("/api/subtitles", subtitlesRoutes);
 
 // Home route
 app.get("/", (req, res) => {

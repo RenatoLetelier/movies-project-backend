@@ -3,9 +3,11 @@ const config = require("../config");
 let UsersRepository;
 
 if (config.DB_TYPE === "mysql") {
-  UsersRepository = new (require("../repositories/UsersRepository.mysql"))();
+  UsersRepository =
+    new (require("../repositories/UsersRepository/UsersRepository.mysql"))();
 } else if (config.DB_TYPE === "mongodb") {
-  UsersRepository = new (require("../repositories/UsersRepository.mongodb"))();
+  UsersRepository =
+    new (require("../repositories/UsersRepository/UsersRepository.mongodb"))();
 }
 
 module.exports = {
