@@ -1,5 +1,6 @@
 const subtitleService = require("../services/subtitlesService");
 const fs = require("fs");
+const path = require("path");
 
 exports.getAllSubtitles = async (req, res) => {
   try {
@@ -78,22 +79,29 @@ exports.streamSubtitleById = async (req, res) => {
 
     const subtitlePath = await subtitleService.getSubtitlePathById(id);
 
-    console.log("Subtítulo Path:", subtitlePath);
-
     if (!fs.existsSync(subtitlePath)) {
       return res.status(404).send("Subtítulo no encontrado.");
     }
 
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    const ext = path.extname(subtitlePath).toLowerCase();
 
-    const readStream = fs.createReadStream(subtitlePath);
+    if (ext === ".srt") {
+      // Convertir SRT a VTT al vuelo
+      const srtData = fs.readFileSync(subtitlePath, "utf8");
+      const vttData =
+        "WEBVTT\n\n" +
+        srtData
+          .replace(/\d+\n/g, "") // borrar numeración de bloques
+          .replace(/,/g, "."); // cambiar "," por "." en timestamps
 
-    readStream.on("error", (err) => {
-      console.error("Error leyendo el archivo .srt:", err);
-      res.status(500).send("Error interno al leer subtítulo.");
-    });
-
-    readStream.pipe(res);
+      res.setHeader("Content-Type", "text/vtt; charset=utf-8");
+      res.send(vttData);
+    } else {
+      // Ya es VTT
+      res.setHeader("Content-Type", "text/vtt; charset=utf-8");
+      const readStream = fs.createReadStream(subtitlePath);
+      readStream.pipe(res);
+    }
   } catch (error) {
     console.error("❌ Error en streamSubtitleById:", error);
     res.status(500).json({ message: "Error al hacer streaming del subtitulo" });
