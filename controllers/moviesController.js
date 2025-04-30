@@ -1,6 +1,8 @@
 const { console } = require("inspector");
 const movieService = require("../services/moviesService");
 const fs = require("fs");
+const path = require("path");
+const ffmpeg = require("fluent-ffmpeg");
 
 exports.getAllMovies = async (req, res) => {
   try {
@@ -94,44 +96,56 @@ exports.streamMovieById = async (req, res) => {
         .send("El archivo de la película no existe en el sistema.");
     }
 
-    const stat = fs.statSync(moviePath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
+    const ext = path.extname(moviePath).toLowerCase();
 
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      let start = parseInt(parts[0], 10);
-      let end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    if (ext === ".mp4") {
+      const stat = fs.statSync(moviePath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
 
-      if (isNaN(start) || start >= fileSize) {
-        start = fileSize - 1;
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+        const file = fs.createReadStream(moviePath, { start, end });
+        const head = {
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunkSize,
+          "Content-Type": "video/mp4",
+        };
+
+        res.writeHead(206, head);
+        file.pipe(res);
+      } else {
+        const head = {
+          "Content-Length": fileSize,
+          "Content-Type": "video/mp4",
+        };
+
+        res.writeHead(200, head);
+        fs.createReadStream(moviePath).pipe(res);
       }
-      if (isNaN(end) || end >= fileSize) {
-        end = fileSize - 1;
-      }
-      if (start > end) {
-        return res.status(416).send("Requested range not satisfiable");
-      }
-
-      const chunkSize = end - start + 1;
-      const file = fs.createReadStream(moviePath, { start, end });
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunkSize,
-        "Content-Type": "video/mp4",
-      };
-
-      res.writeHead(206, head);
-      file.pipe(res);
     } else {
-      const head = {
-        "Content-Length": fileSize,
+      res.writeHead(200, {
         "Content-Type": "video/mp4",
-      };
+        "Transfer-Encoding": "chunked",
+      });
 
-      res.writeHead(200, head);
-      fs.createReadStream(moviePath).pipe(res);
+      ffmpeg(moviePath)
+        .format("mp4")
+        .videoCodec("libx264")
+        .audioCodec("aac")
+        .outputOptions("-movflags frag_keyframe+empty_moov")
+        .on("start", (commandLine) => {
+          console.log("🎬 FFMPEG proceso iniciado:", commandLine);
+        })
+        .on("error", (err) => {
+          console.error("❌ Error transcoding:", err.message);
+          res.destroy();
+        })
+        .pipe(res, { end: true });
     }
   } catch (error) {
     console.error("❌ Error en streamMovieById:", error);
