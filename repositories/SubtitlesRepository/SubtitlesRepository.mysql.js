@@ -1,4 +1,4 @@
-const db = require("../../models/Home_db");
+const db = require("../../models/SQL_xampp");
 const SubtitleRepository = require("./SubtitlesRepository.interface");
 const fs = require("fs");
 

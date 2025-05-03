@@ -1,30 +1,22 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const config = require("./config");
 
-const userRoutes = require("./routes/userRoutes");
-const authRoutes = require("./routes/authRoutes");
-const moviesRoutes = require("./routes/moviesRoutes");
-const photosRoutes = require("./routes/photosRoutes");
-const subtitlesRoutes = require("./routes/subtitlesRoutes");
+const config = require("./config");
+const apiRoutes = require("./routes");
 
 const app = express();
 
 app.use(
   cors({
-    origin: "http://192.168.1.91:5173",
+    origin: `http://${config.HOST}:5173`,
     credentials: true,
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
   })
 );
 app.use(express.json());
-app.use("/api/users", userRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/movies", moviesRoutes);
-app.use("/api/photos", photosRoutes);
-app.use("/api/subtitles", subtitlesRoutes);
+app.use("/api", apiRoutes);
 
 // Home route
 app.get("/", (req, res) => {
@@ -40,53 +32,3 @@ app.get("*", (req, res) => {
 app.listen(config.PORT, "0.0.0.0", () => {
   console.log(`✅ Server running on http://${config.HOST}:${config.PORT}`);
 });
-
-// 📌 Ruta protegida (requiere token)
-// app.get('/profile', verificarToken, (req, res) => {
-//     res.json({ message: 'Bienvenido al perfil protegido', user: req.user });
-// });
-
-// app.get('/movies/muxed/:id', (req, res) => {
-//     const movieId = req.params.id;
-//     const videoFile = "video";
-//     const audioFile = "audio";
-
-//     const videoPath = path.join(__dirname, `./uploads/${videoFile}.mp4`);
-//     const audioPath = path.join(__dirname, `./uploads/${audioFile}${movieId}.mp3`);
-//     const muxedPath = path.join(__dirname, `./uploads/muxed-${movieId}.mp4`);
-
-//     if (!fs.existsSync(videoPath) || !fs.existsSync(audioPath)) {
-//       return res.status(404).send('Video or audio file not found');
-//     }
-
-//     // Si el archivo ya está muxeado, lo servimos directamente
-//     if (fs.existsSync(muxedPath)) {
-//         return res.sendFile(muxedPath);
-//     }
-
-//     res.contentType('video/mp4');
-
-//     ffmpeg()
-//     .input(videoPath)
-//     .input(audioPath)
-//     .outputOptions([
-//       '-map 0:v:0',
-//       '-map 1:a:0',
-//       '-c:v copy',
-//       '-c:a aac',
-//       '-b:a 192k',
-//       '-movflags frag_keyframe+empty_moov' // para compatibilidad con streaming
-//     ])
-//     .on('start', cmd => {
-//       console.log('Muxing command:', cmd);
-//     })
-//     .on('end', () => {
-//       console.log('Muxing completed.');
-//       res.sendFile(muxedPath);
-//     })
-//     .on('error', err => {
-//       console.error('FFmpeg error:', err);
-//       if (!res.headersSent) res.status(500).send('Error muxing media');
-//     })
-//     .save(muxedPath);
-// });
