@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: `http://${config.HOST}:5173`,
     credentials: true,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "UPDATE"],
     allowedHeaders: ["Content-Type"],
   })
 );
