@@ -7,6 +7,7 @@ const ffmpeg = require("fluent-ffmpeg");
 exports.getAllMovies = async (req, res) => {
   try {
     const movies = await movieService.getAllMovies();
+    console.log("🎬 Películas obtenidas:", movies);
     res.status(200).json(movies);
   } catch (err) {
     res.status(500).json({ error: "Error al obtener las películas" });

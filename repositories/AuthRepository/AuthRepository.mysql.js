@@ -14,22 +14,34 @@ class AuthRepositoryMySQL extends AuthRepository {
 
     try {
       const [existingUsers] = await db.query(
-        "SELECT id FROM users WHERE username = ?",
+        "SELECT * FROM users WHERE username = ?",
         [username]
       );
-
       if (existingUsers.length > 0) {
-        return { message: "El usuario ya existe" };
+        return { error: "El usuario ya existe" };
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      await db.query(
+      const [result] = await db.query(
         "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
         [username, email, hashedPassword]
       );
+      const userId = result.insertId;
 
-      return { message: "Usuario creado con éxito" };
+      const token = jwt.sign(
+        { id: userId, username: username },
+        process.env.JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      const newUser = {
+        id: userId,
+        username: username,
+        email: email,
+      };
+
+      return { message: "Registro de sesión exitoso", token, newUser };
     } catch (error) {
       console.error("❌ Error al crear usuario:", error);
       return { message: "Error al crear usuario" };
