@@ -7,7 +7,6 @@ const ffmpeg = require("fluent-ffmpeg");
 exports.getAllMovies = async (req, res) => {
   try {
     const movies = await movieService.getAllMovies();
-    console.log("🎬 Películas obtenidas:", movies);
     res.status(200).json(movies);
   } catch (err) {
     res.status(500).json({ error: "Error al obtener las películas" });
@@ -15,8 +14,12 @@ exports.getAllMovies = async (req, res) => {
 };
 
 exports.getMovieById = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id es requerido" });
+  }
+
   try {
-    const { id } = req.params;
     const movie = await movieService.getMovieById(id);
 
     if (!movie) {
@@ -25,44 +28,48 @@ exports.getMovieById = async (req, res) => {
 
     res.status(200).json(movie);
   } catch (error) {
-    console.error("❌ Error en getMovieById:", error);
     res.status(500).json({ message: "Error al obtener la película" });
   }
 };
 
 exports.createMovie = async (req, res) => {
+  const { title, path } = req.body;
+  if (!title || !path) {
+    return res
+      .status(400)
+      .json({ message: "Título y ruta del archivo son requeridos" });
+  }
+
   try {
-    const { title, path } = req.body;
-
-    if (!title || !path) {
-      return res
-        .status(400)
-        .json({ message: "Título y ruta del archivo son requeridos" });
-    }
-
     const result = await movieService.createMovie(req.body);
     res.status(201).json(result);
   } catch (error) {
-    console.error("❌ Error en createMovie:", error);
-    res
-      .status(500)
-      .json({ message: error.message || "Error al crear la película" });
+    res.status(500).json({ message: "Error al crear la película" });
   }
 };
 
 exports.updateMovie = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id es requerido" });
+  }
+
   try {
-    const result = await movieService.updateMovie(req.params.id, req.body);
+    const result = await movieService.updateMovie(id, req.body);
     res.status(200).json(result);
   } catch (err) {
-    console.error("❌ Error en updateMovie:", err);
-    res.status(500).json({ error: "Error al actualizar la película." });
+    res.status(500).json({ message: "Error al actualizar la película." });
   }
 };
 
 exports.deleteMovie = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id es requerido" });
+  }
+
   try {
-    const result = await movieService.deleteMovie(req.params.id);
+    const result = await movieService.deleteMovie(id);
 
     if (!result) {
       return res.status(404).json({ message: "Película no encontrada" });
@@ -70,14 +77,12 @@ exports.deleteMovie = async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error("❌ Error en deleteMovie:", error);
     res.status(500).json({ message: "Error al eliminar la película" });
   }
 };
 
 exports.streamMovieById = async (req, res) => {
   const { id } = req.params;
-
   if (!id) {
     return res.status(400).json({ message: "El id es requerido" });
   }
@@ -94,7 +99,9 @@ exports.streamMovieById = async (req, res) => {
     if (!fs.existsSync(moviePath)) {
       return res
         .status(404)
-        .send("El archivo de la película no existe en el sistema.");
+        .json({
+          message: "El archivo de la película no existe en el sistema.",
+        });
     }
 
     const ext = path.extname(moviePath).toLowerCase();
@@ -143,13 +150,11 @@ exports.streamMovieById = async (req, res) => {
           console.log("🎬 FFMPEG proceso iniciado:", commandLine);
         })
         .on("error", (err) => {
-          console.error("❌ Error transcoding:", err.message);
           res.destroy();
         })
         .pipe(res, { end: true });
     }
   } catch (error) {
-    console.error("❌ Error en streamMovieById:", error);
     res
       .status(500)
       .json({ message: "Error al hacer streaming de la película" });

@@ -38,10 +38,9 @@ class MovieRepositoryMySQL extends MovieRepository {
     `;
 
     const [results] = await db.query(query, id);
-    if (results.length === 0) return null;
+    if (results.length === 0) return { message: "Pelicula no encontrada." };
 
     const movie = results[0];
-    // const fileExists = fs.existsSync(movie.path);
 
     return {
       id: movie.id,
@@ -84,7 +83,7 @@ class MovieRepositoryMySQL extends MovieRepository {
     ]);
 
     if (existing.length > 0) {
-      throw new Error("Ya existe una película con este título");
+      return { message: "Ya existe una película con este título" };
     }
 
     const [movieResult] = await db.query(
@@ -139,7 +138,7 @@ class MovieRepositoryMySQL extends MovieRepository {
       );
     }
 
-    return { movieId, message: "Película creada con éxito" };
+    return { message: "Película creada con éxito" };
   }
 
   //UPDATE MOVIE

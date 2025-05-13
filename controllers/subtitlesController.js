@@ -7,13 +7,17 @@ exports.getAllSubtitles = async (req, res) => {
     const subtitles = await subtitleService.getAllSubtitles();
     res.status(200).json(subtitles);
   } catch (err) {
-    res.status(500).json({ error: "Error al obtener las fotos" });
+    res.status(500).json({ message: "Error al obtener las fotos" });
   }
 };
 
 exports.getSubtitleById = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "Id de la foto es requerido" });
+  }
+
   try {
-    const { id } = req.params;
     const subtitle = await subtitleService.getSubtitleById(id);
 
     if (!subtitle) {
@@ -27,40 +31,44 @@ exports.getSubtitleById = async (req, res) => {
 };
 
 exports.createSubtitle = async (req, res) => {
+  const { name, path } = req.body;
+
+  if (!name || !path) {
+    return res
+      .status(400)
+      .json({ message: "Nombre y ruta del archivo son requeridos" });
+  }
+
   try {
-    const { name, path } = req.body;
-
-    if (!name || !path) {
-      return res
-        .status(400)
-        .json({ message: "Nombre y ruta del archivo son requeridos" });
-    }
-
     const result = await subtitleService.createSubtitle(req.body);
     res.status(201).json(result);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: error.message || "Error al crear la foto" });
+    res.status(500).json({ message: "Error al crear la foto" });
   }
 };
 
 exports.updateSubtitle = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "Id de la foto es requerido" });
+  }
+
   try {
-    const result = await subtitleService.updateSubtitle(
-      req.params.id,
-      req.body
-    );
+    const result = await subtitleService.updateSubtitle(id, req.body);
     res.status(200).json(result);
   } catch (err) {
-    console.error("❌ Error en updateSubtitle:", err);
-    res.status(500).json({ error: "Error al actualizar la foto." });
+    res.status(500).json({ message: "Error al actualizar la foto." });
   }
 };
 
 exports.deleteSubtitle = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "Id de la foto es requerido" });
+  }
+
   try {
-    const result = await subtitleService.deleteSubtitle(req.params.id);
+    const result = await subtitleService.deleteSubtitle(id);
 
     if (!result) {
       return res.status(404).json({ message: "Foto no encontrada" });
@@ -68,15 +76,17 @@ exports.deleteSubtitle = async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error("❌ Error en deleteSubtitle:", error);
     res.status(500).json({ message: "Error al eliminar la foto" });
   }
 };
 
 exports.streamSubtitleById = async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "Id de la foto es requerido" });
+  }
 
+  try {
     const subtitlePath = await subtitleService.getSubtitlePathById(id);
 
     if (!fs.existsSync(subtitlePath)) {
@@ -86,7 +96,6 @@ exports.streamSubtitleById = async (req, res) => {
     const ext = path.extname(subtitlePath).toLowerCase();
 
     if (ext === ".srt") {
-      // Convertir SRT a VTT al vuelo
       const srtData = fs.readFileSync(subtitlePath, "utf-8");
       const vttData =
         "WEBVTT\n\n" +
@@ -97,13 +106,11 @@ exports.streamSubtitleById = async (req, res) => {
       res.setHeader("Content-Type", "text/vtt; charset=utf-8");
       res.send(vttData);
     } else {
-      // Ya es VTT
       res.setHeader("Content-Type", "text/vtt; charset=utf-8");
       const readStream = fs.createReadStream(subtitlePath);
       readStream.pipe(res);
     }
   } catch (error) {
-    console.error("❌ Error en streamSubtitleById:", error);
     res.status(500).json({ message: "Error al hacer streaming del subtitulo" });
   }
 };

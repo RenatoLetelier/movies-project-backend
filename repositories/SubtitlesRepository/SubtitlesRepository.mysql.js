@@ -34,21 +34,19 @@ class SubtitleRepositoryMySQL extends SubtitleRepository {
 
     const [existing] = await db.query(
       "SELECT id FROM subtitles WHERE language = ?",
-      [data.language]
+      [language]
     );
 
     if (existing.length > 0) {
-      throw new Error("Ya existe subtitulos en ese idioma");
+      return { message: "Ya existe subtitulos en ese idioma" };
     }
 
-    const [subtitleResult] = await db.query(
+    await db.query(
       `INSERT INTO subtitles (movie_id, name, language, path) VALUES (?, ?, ?, ?)`,
       [movie_id, name, language, path]
     );
 
-    const subtitleId = subtitleResult.insertId;
-
-    return { subtitleId, message: "Foto creada con éxito" };
+    return { message: "Foto creada con éxito" };
   }
 
   //UPDATE MOVIE

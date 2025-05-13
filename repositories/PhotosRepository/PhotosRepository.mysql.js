@@ -10,7 +10,7 @@ class PhotoRepositoryMySQL extends PhotoRepository {
     return rows;
   }
 
-  //GET ONE MOVIE
+  //GET ONE PHOTO
   async getPhotoById(id) {
     const query = `
       SELECT 
@@ -39,10 +39,9 @@ class PhotoRepositoryMySQL extends PhotoRepository {
     `;
 
     const [results] = await db.query(query, id);
-    if (results.length === 0) return null;
+    if (results.length === 0) return { message: "No se encontró la foto" };
 
     const photo = results[0];
-    // const fileExists = fs.existsSync(photo.path);
 
     return {
       id: photo.id,
@@ -85,7 +84,7 @@ class PhotoRepositoryMySQL extends PhotoRepository {
     ]);
 
     if (existing.length > 0) {
-      throw new Error("Ya existe una foto con este nombre");
+      return { message: "Ya existe una foto con este nombre" };
     }
 
     const [photoResult] = await db.query(
@@ -171,7 +170,7 @@ class PhotoRepositoryMySQL extends PhotoRepository {
       );
     }
 
-    return { photoId, message: "Foto creada con éxito" };
+    return { message: "Foto creada con éxito" };
   }
 
   //UPDATE MOVIE
@@ -190,6 +189,13 @@ class PhotoRepositoryMySQL extends PhotoRepository {
       albums,
       persons,
     } = data;
+
+    const [existing] = await db.query("SELECT name FROM photos WHERE id = ?", [
+      photoId,
+    ]);
+    if (existing.length === 0) {
+      return { message: "Foto no encontrada" };
+    }
 
     await db.query(
       `

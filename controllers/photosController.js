@@ -1,6 +1,5 @@
 const photoService = require("../services/photosService");
 const fs = require("fs");
-const path = require("path");
 // const multer = require('multer');
 
 exports.getAllPhotos = async (req, res) => {
@@ -8,13 +7,17 @@ exports.getAllPhotos = async (req, res) => {
     const photos = await photoService.getAllPhotos();
     res.status(200).json(photos);
   } catch (err) {
-    res.status(500).json({ error: "Error al obtener las fotos" });
+    res.status(500).json({ message: "Error al obtener las fotos" });
   }
 };
 
 exports.getPhotoById = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id de la foto es requerido" });
+  }
+
   try {
-    const { id } = req.params;
     const photo = await photoService.getPhotoById(id);
 
     if (!photo) {
@@ -28,37 +31,43 @@ exports.getPhotoById = async (req, res) => {
 };
 
 exports.createPhoto = async (req, res) => {
+  const { name, path } = req.body;
+  if (!name || !path) {
+    return res
+      .status(400)
+      .json({ message: "Nombre y ruta de la foto son requeridos" });
+  }
+
   try {
-    const { name, path } = req.body;
-
-    if (!name || !path) {
-      return res
-        .status(400)
-        .json({ message: "Nombre y ruta del archivo son requeridos" });
-    }
-
     const result = await photoService.createPhoto(req.body);
     res.status(201).json(result);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: error.message || "Error al crear la foto" });
+    res.status(500).json({ message: "Error al crear la foto" });
   }
 };
 
 exports.updatePhoto = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id de la foto es requerido" });
+  }
+
   try {
-    const result = await photoService.updatePhoto(req.params.id, req.body);
+    const result = await photoService.updatePhoto(id, req.body);
     res.status(200).json(result);
   } catch (err) {
-    console.error("❌ Error en updatePhoto:", err);
-    res.status(500).json({ error: "Error al actualizar la foto." });
+    res.status(500).json({ message: "Error al actualizar la foto." });
   }
 };
 
 exports.deletePhoto = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id de la foto es requerido" });
+  }
+
   try {
-    const result = await photoService.deletePhoto(req.params.id);
+    const result = await photoService.deletePhoto(id);
 
     if (!result) {
       return res.status(404).json({ message: "Foto no encontrada" });
@@ -66,14 +75,12 @@ exports.deletePhoto = async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error("❌ Error en deletePhoto:", error);
     res.status(500).json({ message: "Error al eliminar la foto" });
   }
 };
 
 exports.streamPhotoById = async (req, res) => {
   const { id } = req.params;
-
   if (!id) {
     return res.status(400).json({ message: "El id de la foto es requerido" });
   }
@@ -90,16 +97,15 @@ exports.streamPhotoById = async (req, res) => {
     if (!fs.existsSync(photoPath)) {
       return res
         .status(404)
-        .send("El archivo de la foto no existe en el sistema.");
+        .json({ message: "El archivo de la foto no existe en el sistema." });
     }
 
     res.sendFile(photoPath, (err) => {
       if (err) {
-        res.status(404).send("Imagen no encontrada.");
+        res.status(404).json({ message: "Imagen no encontrada." });
       }
     });
   } catch (error) {
-    console.error("❌ Error en streamPhotoById:", error);
     res.status(500).json({ message: "Error al hacer streaming de la foto" });
   }
 };

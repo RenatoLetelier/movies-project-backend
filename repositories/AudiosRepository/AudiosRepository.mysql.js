@@ -30,8 +30,7 @@ class AudioRepositoryMySQL extends AudioRepository {
       );
       if (existingAudios.length > 0) {
         return {
-          message:
-            "La pista de audio con ese idioma ya existe para esta pelicula",
+          message: "La pista de audio ya existe",
         };
       }
 
@@ -42,7 +41,6 @@ class AudioRepositoryMySQL extends AudioRepository {
 
       return { message: "Audio creado con éxito" };
     } catch (error) {
-      console.error("❌ Error al crear audio:", error);
       return { message: "Error al crear audio" };
     }
   }

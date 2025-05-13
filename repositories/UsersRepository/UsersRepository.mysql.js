@@ -32,10 +32,6 @@ class UserRepositoryMySQL extends UserRepository {
   async createUser(data) {
     const { username, email, password } = data;
 
-    if (!username || !password) {
-      return { message: "Username y password son requeridos" };
-    }
-
     try {
       const [existingUsers] = await db.query(
         "SELECT id FROM users WHERE username = ?",
@@ -54,7 +50,6 @@ class UserRepositoryMySQL extends UserRepository {
 
       return { message: "Usuario creado con éxito" };
     } catch (error) {
-      console.error("❌ Error al crear usuario:", error);
       return { message: "Error al crear usuario" };
     }
   }
