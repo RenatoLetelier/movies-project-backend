@@ -6,62 +6,47 @@ const jwt = require("jsonwebtoken");
 class AuthRepositoryMySQL extends AuthRepository {
   //SIGNUP
   async signup(data) {
-    const { username, email, password } = data;
-
-    if (!username || !password) {
-      return { message: "Username y password son requeridos" };
-    }
-
     try {
       const [existingUsers] = await db.query(
         "SELECT * FROM users WHERE username = ?",
-        [username]
+        [data.username]
       );
       if (existingUsers.length > 0) {
         return { error: "El usuario ya existe" };
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
 
       const [result] = await db.query(
         "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-        [username, email, hashedPassword]
+        [data.username, data.email, hashedPassword]
       );
       const userId = result.insertId;
 
       const token = jwt.sign(
-        { id: userId, username: username },
+        { id: userId, username: data.username },
         process.env.JWT_SECRET,
-        { expiresIn: "24h" }
+        { expiresIn: "23h" }
       );
 
       const newUser = {
         id: userId,
-        username: username,
-        email: email,
+        username: data.username,
+        email: data.email,
       };
 
       return { message: "Registro de sesión exitoso", token, newUser };
     } catch (error) {
-      console.error("❌ Error al crear usuario:", error);
       return { message: "Error al crear usuario" };
     }
   }
 
   //SIGNIN
   async signin(data) {
-    const { username, password } = data;
-
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ error: "Username y password son requeridos" });
-    }
-
     try {
       const [results] = await db.query(
         "SELECT * FROM users WHERE username = ?",
-        [username]
+        [data.username]
       );
 
       if (results.length === 0) {
@@ -70,7 +55,7 @@ class AuthRepositoryMySQL extends AuthRepository {
 
       const user = results[0];
 
-      const isMatch = await bcrypt.compare(password, user.password);
+      const isMatch = await bcrypt.compare(data.password, user.password);
 
       if (!isMatch) {
         return { error: "Contraseña incorrecta" };
@@ -79,10 +64,9 @@ class AuthRepositoryMySQL extends AuthRepository {
       const token = jwt.sign(
         { id: user.id, username: user.username },
         process.env.JWT_SECRET,
-        { expiresIn: "24h" }
+        { expiresIn: "23h" }
       );
 
-      // Nuevo usuario sin contraseña
       const newUser = {
         id: user.id,
         username: user.username,
@@ -91,7 +75,6 @@ class AuthRepositoryMySQL extends AuthRepository {
 
       return { message: "Inicio de sesión exitoso", token, newUser };
     } catch (error) {
-      console.error("❌ Error en login:", error);
       res.status(500).json({ error: "Error en el login" });
     }
   }
@@ -106,7 +89,6 @@ class AuthRepositoryMySQL extends AuthRepository {
 
       return results;
     } catch (error) {
-      console.error("❌ Error al obtener perfil:", error);
       res.status(500).json({ error: "Error al obtener perfil" });
     }
   }
