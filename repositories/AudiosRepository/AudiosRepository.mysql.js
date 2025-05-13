@@ -23,10 +23,6 @@ class AudioRepositoryMySQL extends AudioRepository {
   async createAudio(data) {
     const { movie_id, language, path, timeGap } = data;
 
-    if (!movie_id || !language || !path) {
-      return { message: "movie_id, path y language son requeridos" };
-    }
-
     try {
       const [existingAudios] = await db.query(
         "SELECT id FROM audios WHERE movie_id = ? AND language = ?",
@@ -35,7 +31,7 @@ class AudioRepositoryMySQL extends AudioRepository {
       if (existingAudios.length > 0) {
         return {
           message:
-            "La pista de audio con ese idioma ya exista para esta pelicula",
+            "La pista de audio con ese idioma ya existe para esta pelicula",
         };
       }
 
@@ -54,6 +50,11 @@ class AudioRepositoryMySQL extends AudioRepository {
   //UPDATE AUDIO
   async updateAudio(audioId, data) {
     const { movie_id, language, path, timeGap } = data;
+
+    const query = `SELECT * FROM audios WHERE id = ?;`;
+
+    const [results] = await db.query(query, audioId);
+    if (results.length === 0) return { message: "Audio no encontrado." };
 
     try {
       await db.query(

@@ -87,7 +87,7 @@ exports.streamSubtitleById = async (req, res) => {
 
     if (ext === ".srt") {
       // Convertir SRT a VTT al vuelo
-      const srtData = fs.readFileSync(subtitlePath, "utf8");
+      const srtData = fs.readFileSync(subtitlePath, "utf-8");
       const vttData =
         "WEBVTT\n\n" +
         srtData

@@ -8,7 +8,7 @@ exports.getAllAudios = async (req, res) => {
     const audios = await audiosService.getAllAudios();
     res.status(200).json(audios);
   } catch (err) {
-    res.status(500).json({ error: "Error al obtener las películas" });
+    res.status(500).json({ error: "Error al obtener los audios" });
   }
 };
 
@@ -29,6 +29,14 @@ exports.getAudioById = async (req, res) => {
 };
 
 exports.createAudio = async (req, res) => {
+  const { movie_id, language, path } = req.body;
+
+  if (!movie_id || !language || !path) {
+    return res
+      .status(500)
+      .json({ message: "movie_id, path y language son requeridos" });
+  }
+
   try {
     const result = await audiosService.createAudio(req.body);
     res.status(201).json(result);
@@ -41,8 +49,20 @@ exports.createAudio = async (req, res) => {
 };
 
 exports.updateAudio = async (req, res) => {
+  const { movie_id, language, path } = req.body;
+  const { id } = req.params;
+
+  if (!movie_id || !language || !path) {
+    return res
+      .status(500)
+      .json({ message: "movie_id, path y language son requeridos" });
+  }
+  if (!id) {
+    return res.status(400).json({ message: "El id es requerido" });
+  }
+
   try {
-    const result = await audiosService.updateAudio(req.params.id, req.body);
+    const result = await audiosService.updateAudio(id, req.body);
     res.status(200).json(result);
   } catch (err) {
     console.error("❌ Error en updateAudio:", err);
@@ -51,8 +71,13 @@ exports.updateAudio = async (req, res) => {
 };
 
 exports.deleteAudio = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "El id es requerido" });
+  }
+
   try {
-    const result = await audiosService.deleteAudio(req.params.id);
+    const result = await audiosService.deleteAudio(id);
 
     if (!result) {
       return res.status(404).json({ message: "Audio no encontrado" });
