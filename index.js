@@ -11,12 +11,13 @@ app.use(
   cors({
     origin: `http://${config.HOST}:5173`,
     credentials: true,
-    methods: ["GET", "POST", "UPDATE"],
+    methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type"],
   })
 );
 app.use(express.json());
 app.use("/api", apiRoutes);
+app.use("/static/peliculas", express.static("D:/Movies/Peliculas"));
 
 // Home route
 app.get("/", (req, res) => {

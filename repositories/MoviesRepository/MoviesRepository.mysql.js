@@ -1,16 +1,40 @@
 const db = require("../../models/SQL_xampp");
 const MovieRepository = require("./MoviesRepository.interface");
+const fs = require("fs");
+const config = require("../../config");
 
 class MovieRepositoryMySQL extends MovieRepository {
   //GET ALL MOVIES
   async getAllMovies() {
+    const moviesDir = config.MOVIES_DIRECTORY;
+    let localFiles = [];
+
     const query = "SELECT * FROM movies";
     const [rows] = await db.query(query);
-    return rows;
+
+    // Get movies that are not in the database
+    try {
+      localFiles = fs
+        .readdirSync(moviesDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+    } catch (err) {
+      console.error("Error leyendo el directorio de películas:", err);
+    }
+
+    const dbTitles = rows.map((movie) => movie.title.toLowerCase().trim());
+
+    const missingMovies = localFiles
+      .filter((title) => !dbTitles.includes(title.toLowerCase().trim()))
+      .map((title) => ({
+        title,
+      }));
+
+    return [...rows, ...missingMovies];
   }
 
   //GET ONE MOVIE
-  async getMovieById(id) {
+  async getMovieByTitle(title) {
     const query = `
       SELECT 
         m.id, 
@@ -33,11 +57,11 @@ class MovieRepositoryMySQL extends MovieRepository {
       LEFT JOIN genres g ON mg.genre_id = g.id
       LEFT JOIN movie_actors ma ON m.id = ma.movie_id
       LEFT JOIN actors a ON ma.actor_id = a.id
-      WHERE m.id = ?
+      WHERE m.title = ?
       GROUP BY m.id;
     `;
 
-    const [results] = await db.query(query, id);
+    const [results] = await db.query(query, title);
     if (results.length === 0) return { message: "Pelicula no encontrada." };
 
     const movie = results[0];
@@ -142,7 +166,7 @@ class MovieRepositoryMySQL extends MovieRepository {
   }
 
   //UPDATE MOVIE
-  async updateMovie(movieId, data) {
+  async updateMovie(movieTitle, data) {
     const {
       title,
       subtitle,
@@ -159,6 +183,10 @@ class MovieRepositoryMySQL extends MovieRepository {
     } = data;
 
     const newPath = path.replace(/\\/g, "/").replace(/^["']|["']$/g, "");
+
+    const movieId = (
+      await db.query("SELECT id FROM movies WHERE title = ?", [movieTitle])
+    )[0][0].id;
 
     await db.query(
       `
@@ -250,14 +278,20 @@ class MovieRepositoryMySQL extends MovieRepository {
   }
 
   //DELETE MOVIE
-  async deleteMovie(id) {
+  async deleteMovie(title) {
+    const movieId = (
+      await db.query("SELECT id FROM movies WHERE title = ?", [title])
+    )[0][0].id;
+
     await Promise.all([
-      db.query("DELETE FROM movie_directors WHERE movie_id = ?", [id]),
-      db.query("DELETE FROM movie_genres WHERE movie_id = ?", [id]),
-      db.query("DELETE FROM movie_actors WHERE movie_id = ?", [id]),
+      db.query("DELETE FROM movie_directors WHERE movie_id = ?", [movieId]),
+      db.query("DELETE FROM movie_genres WHERE movie_id = ?", [movieId]),
+      db.query("DELETE FROM movie_actors WHERE movie_id = ?", [movieId]),
     ]);
 
-    const [result] = await db.query("DELETE FROM movies WHERE id = ?", [id]);
+    const [result] = await db.query("DELETE FROM movies WHERE id = ?", [
+      movieId,
+    ]);
 
     if (result.affectedRows === 0) {
       return null;
@@ -267,8 +301,10 @@ class MovieRepositoryMySQL extends MovieRepository {
   }
 
   //STREAM MOVIE
-  async getMoviePathById(id) {
-    const [rows] = await db.query("SELECT path FROM movies WHERE id = ?", [id]);
+  async getMoviePathByTitle(title) {
+    const [rows] = await db.query("SELECT path FROM movies WHERE title = ?", [
+      title,
+    ]);
     return rows.length > 0 ? rows[0].path : null;
   }
 }

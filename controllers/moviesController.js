@@ -13,14 +13,14 @@ exports.getAllMovies = async (req, res) => {
   }
 };
 
-exports.getMovieById = async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.status(400).json({ message: "El id es requerido" });
+exports.getMovieByTitle = async (req, res) => {
+  const { title } = req.params;
+  if (!title) {
+    return res.status(400).json({ message: "El titulo es requerido" });
   }
 
   try {
-    const movie = await movieService.getMovieById(id);
+    const movie = await movieService.getMovieByTitle(title);
 
     if (!movie) {
       return res.status(404).json({ message: "Película no encontrada" });
@@ -49,13 +49,13 @@ exports.createMovie = async (req, res) => {
 };
 
 exports.updateMovie = async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.status(400).json({ message: "El id es requerido" });
+  const { title } = req.params;
+  if (!title) {
+    return res.status(400).json({ message: "El titulo es requerido" });
   }
 
   try {
-    const result = await movieService.updateMovie(id, req.body);
+    const result = await movieService.updateMovie(title, req.body);
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: "Error al actualizar la película." });
@@ -63,13 +63,13 @@ exports.updateMovie = async (req, res) => {
 };
 
 exports.deleteMovie = async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.status(400).json({ message: "El id es requerido" });
+  const { title } = req.params;
+  if (!title) {
+    return res.status(400).json({ message: "El titulo es requerido" });
   }
 
   try {
-    const result = await movieService.deleteMovie(id);
+    const result = await movieService.deleteMovie(title);
 
     if (!result) {
       return res.status(404).json({ message: "Película no encontrada" });
@@ -81,14 +81,14 @@ exports.deleteMovie = async (req, res) => {
   }
 };
 
-exports.streamMovieById = async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.status(400).json({ message: "El id es requerido" });
+exports.streamMovieByTitle = async (req, res) => {
+  const { title } = req.params;
+  if (!title) {
+    return res.status(400).json({ message: "El titulo es requerido" });
   }
 
   try {
-    const moviePath = await movieService.getMoviePathById(id);
+    const moviePath = await movieService.getMoviePathByTitle(title);
 
     if (!moviePath) {
       return res
@@ -97,11 +97,9 @@ exports.streamMovieById = async (req, res) => {
     }
 
     if (!fs.existsSync(moviePath)) {
-      return res
-        .status(404)
-        .json({
-          message: "El archivo de la película no existe en el sistema.",
-        });
+      return res.status(404).json({
+        message: "El archivo de la película no existe en el sistema.",
+      });
     }
 
     const ext = path.extname(moviePath).toLowerCase();

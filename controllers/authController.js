@@ -1,7 +1,7 @@
 const authService = require("../services/authService");
 
 exports.signup = async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, password } = req.body;
 
   if (!username || !password) {
     return { message: "Username y password son requeridos" };
