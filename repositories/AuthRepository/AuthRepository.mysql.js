@@ -67,13 +67,13 @@ class AuthRepositoryMySQL extends AuthRepository {
         { expiresIn: "23h" }
       );
 
-      const newUser = {
-        id: user.id,
+      const result = {
+        message: "Inicio de sesión exitoso",
         username: user.username,
         email: user.email,
       };
 
-      return { message: "Inicio de sesión exitoso", token, newUser };
+      return { token, result };
     } catch (error) {
       res.status(500).json({ error: "Error en el login" });
     }

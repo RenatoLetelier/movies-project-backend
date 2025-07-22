@@ -3,8 +3,23 @@ const movieService = require("../services/moviesService");
 const fs = require("fs");
 const path = require("path");
 const ffmpeg = require("fluent-ffmpeg");
+const multer = require("multer");
+const jwt = require("jsonwebtoken");
+
+// Configuración de almacenamiento
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "..", "uploads", "banners")); // guardar en uploads/banners
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
 
 exports.getAllMovies = async (req, res) => {
+  const { page, page_size } = req.params;
   try {
     const movies = await movieService.getAllMovies();
     res.status(200).json(movies);
@@ -156,5 +171,30 @@ exports.streamMovieByTitle = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error al hacer streaming de la película" });
+  }
+};
+
+exports.uploadMovieBanner = async (req, res) => {
+  const { title } = req.params;
+
+  if (!title) {
+    return res.status(400).json({ message: "El título es requerido" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: "No se subió ninguna imagen." });
+  }
+
+  try {
+    // Aquí podrías guardar el filename en tu base de datos si quisieras
+
+    return res.status(200).json({
+      message: "Imagen subida con éxito.",
+      filename: req.file.filename,
+      path: `/uploads/banners/${req.file.filename}`,
+    });
+  } catch (error) {
+    console.error("Error al subir banner:", error);
+    return res.status(500).json({ message: "Error al subir la imagen" });
   }
 };
