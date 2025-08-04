@@ -17,7 +17,8 @@ app.use(
 );
 app.use(express.json());
 app.use("/api", apiRoutes);
-app.use("/api/static/peliculas", express.static("D:/Movies/Peliculas"));
+app.use("/api/static/banners", express.static("D:/Movies/Banners"));
+app.use("/api/static/movies", express.static("D:/Movies/Peliculas"));
 
 // Home route
 app.get("/", (req, res) => {
